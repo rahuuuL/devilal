@@ -1,4 +1,4 @@
-package com.terminal_devilal.utils;
+package com.terminal_devilal.Utils;
 
 import java.io.IOException;
 import java.net.URI;
