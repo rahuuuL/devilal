@@ -32,4 +32,5 @@ public class PriceDeliveryVolumeService {
     public List<PriceDeliveryVolume> getAllPdvWithinDate(String Ticker, LocalDate FromDate, LocalDate ToDate) {
         return repository.findByTickerAndDateBetween(Ticker, ToDate, ToDate);
     }
+    
 }

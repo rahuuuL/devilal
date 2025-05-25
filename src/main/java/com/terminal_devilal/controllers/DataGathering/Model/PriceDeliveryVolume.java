@@ -1,238 +1,255 @@
 package com.terminal_devilal.controllers.DataGathering.Model;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.TreeSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 @EqualsAndHashCode
-@ToString
 @Entity
-@Table(name = "pdv")
+@Table(name = "pdvt")
 @IdClass(PriceDeliveryVolumeId.class)
 public class PriceDeliveryVolume {
 
 	@Id
-    @Column(name = "ticker")
-    private String ticker;
+	@Column(name = "ticker")
+	private String ticker;
 
 	@Id
-    @Column(name = "date")
-    private LocalDate date;
+	@Column(name = "date")
+	private LocalDate date;
 
-    @Column(name = "high")
-    private double high;
+	@Column(name = "high")
+	private double high;
 
-    @Column(name = "low")
-    private double low;
+	@Column(name = "low")
+	private double low;
 
-    @Column(name = "open")
-    private double open;
+	@Column(name = "open")
+	private double open;
 
-    @Column(name = "close")
-    private double close;
+	@Column(name = "close")
+	private double close;
 
-    @Column(name = "ltp")
-    private double lastTradeValue;
+	@Column(name = "ltp")
+	private double lastTradeValue;
 
-    @Column(name = "prev_close")
-    private double prevoiusClosePrice;
+	@Column(name = "prev_close")
+	private double prevoiusClosePrice;
 
-    @Column(name = "volume")
-    private long volume;
+	@Column(name = "volume")
+	private long volume;
 
-    @Column(name = "value")
-    private double value;
+	@Column(name = "value")
+	private double value;
 
-    @Column(name = "52w_high")
-    private double week52High;
+	@Column(name = "trades")
+	private int trades;
 
-    @Column(name = "52w_low")
-    private double week52Low;
+	@Column(name = "del_trade")
+	private long deliveryTrade;
 
-    @Column(name = "trades")
-    private int trades;
+	@Column(name = "del_percent")
+	private double deliveryPercentage;
 
-    @Column(name = "isin")
-    private String isin;
+	@Column(name = "vwap")
+	private double vwap;
 
-    @Column(name = "del_trade")
-    private long deliveryTrade;
+	// Static date formatter reused to avoid re-creating it every time
+	private static final DateTimeFormatter NSE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy",
+			Locale.ENGLISH);
 
-    @Column(name = "del_percent")
-    private double deliveryPercentage;
+	// Mapper Utility function
+	public static TreeSet<PriceDeliveryVolume> parseStockData(JsonNode node, String ticker) {
+		TreeSet<PriceDeliveryVolume> stockList = new TreeSet<PriceDeliveryVolume>(Comparator.comparing(PriceDeliveryVolume::getDate));
+		JsonNode dataArray = node.path("data");
 
-    @Column(name = "vwap")
-    private double vwap;
-    
-    // Mapper Utiliy function
-    public static PriceDeliveryVolume parseStockData(JsonNode item) {
-    	
-    	PriceDeliveryVolume stock = new PriceDeliveryVolume();
-    	
-        stock.setTicker(item.path("CH_SYMBOL").asText());
-        stock.setDate(LocalDate.parse(item.get("CH_TIMESTAMP").asText()));
-        stock.setHigh(item.path("CH_TRADE_HIGH_PRICE").asDouble());
-        stock.setLow(item.path("CH_TRADE_LOW_PRICE").asDouble());
-        stock.setOpen(item.path("CH_OPENING_PRICE").asDouble());
-        stock.setClose(item.path("CH_CLOSING_PRICE").asDouble());
-        stock.setLastTradeValue(item.path("CH_LAST_TRADED_PRICE").asDouble());
-        stock.setPrevoiusClosePrice(item.path("CH_PREVIOUS_CLS_PRICE").asDouble());
-        stock.setVolume(item.path("CH_TOT_TRADED_QTY").asLong());
-        stock.setValue(item.path("CH_TOT_TRADED_VAL").asDouble());
-        stock.setWeek52High(item.path("CH_52WEEK_HIGH_PRICE").asDouble());
-        stock.setWeek52Low(item.path("CH_52WEEK_LOW_PRICE").asDouble());
-        stock.setTrades(item.path("CH_TOTAL_TRADES").asInt());
-        stock.setIsin(item.path("CH_ISIN").asText());
-        stock.setDeliveryTrade(item.path("COP_DELIV_QTY").asLong());
-        stock.setDeliveryPercentage(item.path("COP_DELIV_PERC").asDouble());
-        stock.setVwap(item.path("VWAP").asDouble());
+		if (!dataArray.isArray()) {
+			System.out.print("Empty date" + node.toPrettyString());
+			return stockList; // return empty if "data" is not an array
+		}
 
-        return stock;
-    }
-    
-    
-    // Getters and Setters
-    public String getTicker() {
-        return ticker;
-    }
+		for (JsonNode item : dataArray) {
+			PriceDeliveryVolume stock = new PriceDeliveryVolume();
 
-    public void setTicker(String ticker) {
-        this.ticker = ticker;
-    }
+			stock.setTicker(ticker);
+			stock.setDate(parseDate(item.path("mTIMESTAMP").asText("")));
+			stock.setHigh(item.path("CH_TRADE_HIGH_PRICE").asDouble(0.0));
+			stock.setLow(item.path("CH_TRADE_LOW_PRICE").asDouble(0.0));
+			stock.setOpen(item.path("CH_OPENING_PRICE").asDouble(0.0));
+			stock.setClose(item.path("CH_CLOSING_PRICE").asDouble(0.0));
+			stock.setLastTradeValue(item.path("CH_LAST_TRADED_PRICE").asDouble(0.0));
+			stock.setPrevoiusClosePrice(item.path("CH_PREVIOUS_CLS_PRICE").asDouble(0.0));
+			stock.setVolume(item.path("CH_TOT_TRADED_QTY").asLong(0L));
+			stock.setValue(item.path("CH_TOT_TRADED_VAL").asDouble(0.0));
+			stock.setTrades(item.path("CH_TOTAL_TRADES").asInt(0));
+			stock.setDeliveryTrade(item.path("COP_DELIV_QTY").asLong(0L));
+			stock.setDeliveryPercentage(item.path("COP_DELIV_PERC").asDouble(0.0));
+			stock.setVwap(item.path("VWAP").asDouble(0.0));
 
-    public LocalDate getDate() {
-        return date;
-    }
+			stockList.add(stock);
+		}
 
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
+		return stockList;
+	}
 
-    public double getHigh() {
-        return high;
-    }
+	// Helper function to parse dates safely
+	private static LocalDate parseDate(String dateStr) {
+		try {
+			return LocalDate.parse(dateStr, NSE_DATE_FORMATTER);
+		} catch (Exception e) {
+			return null; // Or LocalDate.now() or throw, based on your requirement
+		}
+	}
 
-    public void setHigh(double high) {
-        this.high = high;
-    }
+	// Getters and Setters
+	public String getTicker() {
+		return ticker;
+	}
 
-    public double getLow() {
-        return low;
-    }
+	public void setTicker(String ticker) {
+		this.ticker = ticker;
+	}
 
-    public void setLow(double low) {
-        this.low = low;
-    }
+	public LocalDate getDate() {
+		return date;
+	}
 
-    public double getOpen() {
-        return open;
-    }
+	public void setDate(LocalDate date) {
+		this.date = date;
+	}
 
-    public void setOpen(double open) {
-        this.open = open;
-    }
+	public double getHigh() {
+		return high;
+	}
 
-    public double getClose() {
-        return close;
-    }
+	public void setHigh(double high) {
+		this.high = high;
+	}
 
-    public void setClose(double close) {
-        this.close = close;
-    }
+	public double getLow() {
+		return low;
+	}
 
-    public double getLastTradeValue() {
-        return lastTradeValue;
-    }
+	public void setLow(double low) {
+		this.low = low;
+	}
 
-    public void setLastTradeValue(double lastTradeValue) {
-        this.lastTradeValue = lastTradeValue;
-    }
+	public double getOpen() {
+		return open;
+	}
 
-    public double getPrevoiusClosePrice() {
-        return prevoiusClosePrice;
-    }
+	public void setOpen(double open) {
+		this.open = open;
+	}
 
-    public void setPrevoiusClosePrice(double prevoiusClosePrice) {
-        this.prevoiusClosePrice = prevoiusClosePrice;
-    }
+	public double getClose() {
+		return close;
+	}
 
-    public long getVolume() {
-        return volume;
-    }
+	public void setClose(double close) {
+		this.close = close;
+	}
 
-    public void setVolume(long volume) {
-        this.volume = volume;
-    }
+	public double getLastTradeValue() {
+		return lastTradeValue;
+	}
 
-    public double getValue() {
-        return value;
-    }
+	public void setLastTradeValue(double lastTradeValue) {
+		this.lastTradeValue = lastTradeValue;
+	}
 
-    public void setValue(double value) {
-        this.value = value;
-    }
+	public double getPrevoiusClosePrice() {
+		return prevoiusClosePrice;
+	}
 
-    public double getWeek52High() {
-        return week52High;
-    }
+	public void setPrevoiusClosePrice(double prevoiusClosePrice) {
+		this.prevoiusClosePrice = prevoiusClosePrice;
+	}
 
-    public void setWeek52High(double week52High) {
-        this.week52High = week52High;
-    }
+	public long getVolume() {
+		return volume;
+	}
 
-    public double getWeek52Low() {
-        return week52Low;
-    }
+	public void setVolume(long volume) {
+		this.volume = volume;
+	}
 
-    public void setWeek52Low(double week52Low) {
-        this.week52Low = week52Low;
-    }
+	public double getValue() {
+		return value;
+	}
 
-    public int getTrades() {
-        return trades;
-    }
+	public void setValue(double value) {
+		this.value = value;
+	}
 
-    public void setTrades(int trades) {
-        this.trades = trades;
-    }
+	public int getTrades() {
+		return trades;
+	}
 
-    public String getIsin() {
-        return isin;
-    }
+	public void setTrades(int trades) {
+		this.trades = trades;
+	}
 
-    public void setIsin(String isin) {
-        this.isin = isin;
-    }
+	public long getDeliveryTrade() {
+		return deliveryTrade;
+	}
 
-    public long getDeliveryTrade() {
-        return deliveryTrade;
-    }
+	public void setDeliveryTrade(long deliveryTrade) {
+		this.deliveryTrade = deliveryTrade;
+	}
 
-    public void setDeliveryTrade(long deliveryTrade) {
-        this.deliveryTrade = deliveryTrade;
-    }
+	public double getDeliveryPercentage() {
+		return deliveryPercentage;
+	}
 
-    public double getDeliveryPercentage() {
-        return deliveryPercentage;
-    }
+	public void setDeliveryPercentage(double deliveryPercentage) {
+		this.deliveryPercentage = deliveryPercentage;
+	}
 
-    public void setDeliveryPercentage(double deliveryPercentage) {
-        this.deliveryPercentage = deliveryPercentage;
-    }
+	public double getVwap() {
+		return vwap;
+	}
 
-    public double getVwap() {
-        return vwap;
-    }
+	public void setVwap(double vwap) {
+		this.vwap = vwap;
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(date, ticker);
+	}
 
-    public void setVwap(double vwap) {
-        this.vwap = vwap;
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		PriceDeliveryVolume other = (PriceDeliveryVolume) obj;
+		return Objects.equals(date, other.date) && Objects.equals(ticker, other.ticker);
+	}
+
+	@Override
+	public String toString() {
+		return "PriceDeliveryVolume [ticker=" + ticker + ", date=" + date + ", high=" + high + ", low=" + low
+				+ ", open=" + open + ", close=" + close + ", lastTradeValue=" + lastTradeValue + ", prevoiusClosePrice="
+				+ prevoiusClosePrice + ", volume=" + volume + ", value=" + value + ", trades=" + trades
+				+ ", deliveryTrade=" + deliveryTrade + ", deliveryPercentage=" + deliveryPercentage + ", vwap=" + vwap
+				+ "]";
+	}
+
 }
-
