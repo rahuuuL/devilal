@@ -19,7 +19,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode
 @Entity
 @Table(name = "pdvt")
-@IdClass(PriceDeliveryVolumeId.class)
+@IdClass(TickerDateId.class)
 public class PriceDeliveryVolume {
 
 	@Id

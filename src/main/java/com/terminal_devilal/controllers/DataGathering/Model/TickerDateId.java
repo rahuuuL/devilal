@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode
-public class PriceDeliveryVolumeId {
+public class TickerDateId {
 	
 	@SuppressWarnings("unused")
 	private String ticker;
@@ -16,9 +16,9 @@ public class PriceDeliveryVolumeId {
     private LocalDate date;
 
     // Default constructor
-    public PriceDeliveryVolumeId() {}
+    public TickerDateId() {}
 
-    public PriceDeliveryVolumeId(String ticker, LocalDate date) {
+    public TickerDateId(String ticker, LocalDate date) {
         this.ticker = ticker;
         this.date = date;
     }
