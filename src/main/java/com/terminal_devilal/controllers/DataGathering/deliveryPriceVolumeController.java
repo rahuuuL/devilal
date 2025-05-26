@@ -100,6 +100,11 @@ public class deliveryPriceVolumeController {
 					// Save the Data
 					priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
 					
+					// update last pdvt date
+					processedDatesService.updateLastDateForPdvt(data.getTicker(), pdvList.getLast().getDate());
+					
+					// produce data to kafka
+					
 				} catch (IOException | InterruptedException e) {
 					System.err.println("Error processing " + data.getTicker() + ": " + e.getMessage());
 				}
