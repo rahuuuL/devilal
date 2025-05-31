@@ -56,5 +56,21 @@ public class AverageTrueRange {
 	public String toString() {
 		return "AverageTrueRange [ticker=" + ticker + ", date=" + date + ", trueRange=" + trueRange + "]";
 	}
+	
+    /**
+     * Calculates the True Range (TR) for a single period.
+     *
+     * @param high Today's high price
+     * @param low Today's low price
+     * @param prevClose Previous day's closing price
+     * @return True Range
+     */
+    public static double calculateTrueRange(double high, double low, double prevClose) {
+        double range1 = high - low;
+        double range2 = Math.abs(high - prevClose);
+        double range3 = Math.abs(low - prevClose);
+
+        return Math.max(range1, Math.max(range2, range3));
+    }
 
 }
