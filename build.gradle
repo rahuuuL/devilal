@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.5'
 	id 'io.spring.dependency-management' version '1.1.7'
+	// Use the Avro plugin or CLI to generate Java classes
+  	id "com.github.davidmc24.gradle.plugin.avro" version "1.5.0"
 }
 
 group = 'com.terminaldevilal'
@@ -14,7 +16,10 @@ configurations {
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
+    maven {
+        url = uri("https://packages.confluent.io/maven/")
+    }
 }
 
 dependencies {
@@ -42,11 +47,25 @@ dependencies {
 	// Kafka Dependencies
 	implementation 'org.springframework.kafka:spring-kafka:3.1.1'
     implementation 'org.apache.kafka:kafka-clients:4.0.0'
+    
+    // Apache Avro
+    implementation 'org.apache.avro:avro:1.11.1'
+    implementation 'io.confluent:kafka-avro-serializer:7.4.0'
+    //implementation files('libs/kafka-avro-serializer-7.4.0.jar')
 	
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+avro {
+    setFieldVisibility("PRIVATE")       // Optional: can be PRIVATE, PUBLIC, etc.
+    stringType.set("String")            // Correct way to set string type
+}
+
+tasks.named("compileJava") {
+    dependsOn("generateAvroJava")
 }
 
 tasks.named('test') {
