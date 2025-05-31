@@ -23,7 +23,14 @@ import com.terminal_devilal.controllers.NSECookie.Model.NSECookieRequest;
 @RequestMapping("/nse-cookie")
 public class NSECookie {
 
-	private static final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
+	private final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
+
+	private final FetchNSEAPI fetchNSEAPI;
+
+	public NSECookie(FetchNSEAPI fetchNSEAPI) {
+		super();
+		this.fetchNSEAPI = fetchNSEAPI;
+	}
 
 	@PostMapping("/save")
 	public ResponseEntity<String> saveCookie(@RequestBody NSECookieRequest request) throws IOException {
@@ -54,7 +61,7 @@ public class NSECookie {
 				"https://www.nseindia.com/api/historical/securityArchives?from=%s&to=%s&symbol=%s&dataType=priceVolumeDeliverable&series=ALL",
 				today, today, ticker);
 
-		FetchNSEAPI.NSEAPICall(url);
+		this.fetchNSEAPI.NSEAPICall(url);
 
 		return ResponseEntity.ok(true);
 

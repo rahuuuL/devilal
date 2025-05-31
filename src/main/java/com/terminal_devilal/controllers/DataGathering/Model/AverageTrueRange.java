@@ -16,7 +16,7 @@ public class AverageTrueRange {
 	@Id
 	@Column(name = "ticker")
 	private String ticker;
-	
+
 	@Id
 	@Column(name = "date")
 	private LocalDate date;
@@ -51,26 +51,17 @@ public class AverageTrueRange {
 	public void setTrueRange(double trueRange) {
 		this.trueRange = trueRange;
 	}
+	
+	public AverageTrueRange(String ticker, LocalDate date, double trueRange) {
+		super();
+		this.ticker = ticker;
+		this.date = date;
+		this.trueRange = trueRange;
+	}
 
 	@Override
 	public String toString() {
 		return "AverageTrueRange [ticker=" + ticker + ", date=" + date + ", trueRange=" + trueRange + "]";
 	}
-	
-    /**
-     * Calculates the True Range (TR) for a single period.
-     *
-     * @param high Today's high price
-     * @param low Today's low price
-     * @param prevClose Previous day's closing price
-     * @return True Range
-     */
-    public static double calculateTrueRange(double high, double low, double prevClose) {
-        double range1 = high - low;
-        double range2 = Math.abs(high - prevClose);
-        double range3 = Math.abs(low - prevClose);
-
-        return Math.max(range1, Math.max(range2, range3));
-    }
 
 }

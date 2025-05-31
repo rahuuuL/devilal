@@ -1,8 +1,6 @@
 package com.terminal_devilal.controllers.DataGathering;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
@@ -27,8 +25,6 @@ import com.terminal_devilal.controllers.DataGathering.Service.ProcessedDatesServ
 @RequestMapping("/pdv")
 public class deliveryPriceVolumeController {
 
-	private final String BASE_URL = "https://www.nseindia.com/api/historicalOR/generateSecurityWiseHistoricalData?from=%s&to=%s&symbol=%s&type=priceVolumeDeliverable&series=EQ";
-
 	// Setup date formatter to match API format like "25-05-2025"
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
@@ -39,27 +35,18 @@ public class deliveryPriceVolumeController {
 
 	private static final int SLEEP_TIME_MS = 5000;
 
-	private ProcessedDatesService processedDatesService;
+	private final ProcessedDatesService processedDatesService;
 
-	private PriceDeliveryVolumeService priceDeliveryVolumeService;
+	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
+
+	private final FetchNSEAPI fetchNSEAPI;
 
 	public deliveryPriceVolumeController(ProcessedDatesService processedDatesService,
-			PriceDeliveryVolumeService priceDeliveryVolumeService) {
+			PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI) {
+		super();
 		this.processedDatesService = processedDatesService;
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
-	}
-
-	/**
-	 * Builds the NSE URL by replacing placeholder.
-	 * 
-	 * @param fromDate the start date (e.g., "01-05-2025")
-	 * @param toDate   the end date (e.g., "05-05-2025")
-	 * @param symbol   the stock symbol (e.g., "INFY")
-	 * @return a complete URL with values inserted
-	 */
-	private String buildUrl(String fromDate, String toDate, String symbol) {
-		String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-		return String.format(BASE_URL, fromDate, toDate, encodedSymbol);
+		this.fetchNSEAPI = fetchNSEAPI;
 	}
 
 	@GetMapping("/revise-data")
@@ -91,20 +78,19 @@ public class deliveryPriceVolumeController {
 					// Make URL
 					String fromDate = data.getPdvtLastDate().format(FORMATTER);
 					String toDate = LocalDate.now().format(FORMATTER);
-					String url = buildUrl(fromDate, toDate, data.getTicker());
+					String url = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
 
 					// Fetch Data
-					JsonNode response = FetchNSEAPI.NSEAPICall(url);
-					TreeSet<PriceDeliveryVolume> pdvList = PriceDeliveryVolume.parseStockData(response, data.getTicker());
+					JsonNode response = this.fetchNSEAPI.NSEAPICall(url);
+					TreeSet<PriceDeliveryVolume> pdvList = this.priceDeliveryVolumeService.parseStockData(response,
+							data.getTicker());
 
 					// Save the Data
 					priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
-					
+
 					// update last pdvt date
-					processedDatesService.updateLastDateForPdvt(data.getTicker(), pdvList.getLast().getDate());
-					
-					// produce data to kafka
-					
+					processedDatesService.updateLastDateForPdvt(data.getTicker(), pdvList.last().getDate());
+
 				} catch (IOException | InterruptedException e) {
 					System.err.println("Error processing " + data.getTicker() + ": " + e.getMessage());
 				}
@@ -119,31 +105,4 @@ public class deliveryPriceVolumeController {
 		executor.shutdown();
 	}
 
-	public static boolean isValidNSEData(JsonNode node) {
-		JsonNode data = node.path("data");
-
-		// Ensure "data" is an object, not null/array/missing
-		if (data.isMissingNode() || !data.isObject()) {
-			System.err.println("Invalid format: 'data' is missing or not an object.");
-			return false;
-		}
-
-		// Check for required fields
-		String[] requiredFields = { "CH_SYMBOL", "CH_SERIES", "mTIMESTAMP", "CH_PREVIOUS_CLS_PRICE", "CH_OPENING_PRICE",
-				"CH_TRADE_HIGH_PRICE", "CH_TRADE_LOW_PRICE", "CH_LAST_TRADED_PRICE", "CH_CLOSING_PRICE", "VWAP",
-				"CH_TOT_TRADED_QTY", "CH_TOT_TRADED_VAL", "CH_TOTAL_TRADES", "CH_TIMESTAMP", "COP_DELIV_QTY",
-				"COP_DELIV_PERC" };
-
-		for (String field : requiredFields) {
-			if (!data.has(field) || data.get(field).isNull()) {
-				System.err.println("Missing or null field: " + field);
-				return false;
-			}
-		}
-
-		return true; // Everything looks fine
-	}
-
 }
-// produce data to kakfta
-// consumer to comsume the data
