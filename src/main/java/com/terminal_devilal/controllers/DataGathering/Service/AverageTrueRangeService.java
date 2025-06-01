@@ -4,8 +4,10 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.controllers.DataGathering.DAO.AverageTrueRangeDAO;
 import com.terminal_devilal.controllers.DataGathering.Model.AverageTrueRange;
+import com.terminal_devilal.controllers.DataGathering.Model.PriceDeliveryVolume;
 
 import jakarta.transaction.Transactional;
 
@@ -13,12 +15,15 @@ import jakarta.transaction.Transactional;
 public class AverageTrueRangeService {
 
 	private AverageTrueRangeDAO averageTrueRangeDAO;
+	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 
-	public AverageTrueRangeService(AverageTrueRangeDAO averageTrueRangeDAO) {
+	public AverageTrueRangeService(AverageTrueRangeDAO averageTrueRangeDAO,
+			PriceDeliveryVolumeService priceDeliveryVolumeService) {
 		super();
 		this.averageTrueRangeDAO = averageTrueRangeDAO;
+		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 	}
-	
+
 	@Transactional
 	public void saveAllATR(List<AverageTrueRange> averageTrueRanges) {
 		this.averageTrueRangeDAO.saveAll(averageTrueRanges);
@@ -44,4 +49,18 @@ public class AverageTrueRangeService {
 
         return Math.max(range1, Math.max(range2, range3));
     }
+    
+	public void processATR(JsonNode jsonNode) {
+			PriceDeliveryVolume pdv = this.priceDeliveryVolumeService.parseStockData(jsonNode);
+
+			// Calc ATR
+			double trueRange = calculateTrueRange(pdv.getHigh(), pdv.getLow(),
+					pdv.getPrevoiusClosePrice());
+
+			// Make ATR object and add to list
+			AverageTrueRange averageTrueRange = new AverageTrueRange(pdv.getTicker(), pdv.getDate(), trueRange);
+			saveATR(averageTrueRange);
+			
+		}
+
 }

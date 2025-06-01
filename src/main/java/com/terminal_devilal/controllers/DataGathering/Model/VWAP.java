@@ -74,4 +74,13 @@ public class VWAP {
 		super();
 	}
 
+	public VWAP(String ticker, LocalDate date, double closePrice, double vwap, double vwapProximity) {
+		super();
+		this.ticker = ticker;
+		this.date = date;
+		this.closePrice = closePrice;
+		this.vwap = vwap;
+		this.vwapProximity = vwapProximity;
+	}
+
 }

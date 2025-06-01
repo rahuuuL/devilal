@@ -24,6 +24,13 @@ public class RSI {
 	@Column(name = "close_diff")
 	private double closeDiff;
 
+	public RSI(String ticker, LocalDate date, double closeDiff) {
+		super();
+		this.ticker = ticker;
+		this.date = date;
+		this.closeDiff = closeDiff;
+	}
+
 	public RSI() {
 		super();
 	}
