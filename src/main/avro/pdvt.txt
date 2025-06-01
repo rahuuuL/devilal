@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "PriceDeliveryVolume",
+  "name": "PriceDeliveryVolumeAvro",
   "namespace": "com.terminal_devilal.controllers.DataGathering.Model",
   "fields": [
     { "name": "ticker", "type": "string" },
