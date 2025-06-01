@@ -1,6 +1,5 @@
 package com.terminal_devilal.controllers.DataGathering;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
@@ -29,11 +28,12 @@ public class deliveryPriceVolumeController {
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
 	// Define number of threads to run in parallel (max API calls at a time)
-	private static final int THREAD_POOL_SIZE = 50;
+	private final int THREAD_POOL_SIZE = 50;
 
-	private static final int BATCH_LIMIT = 99;
+	private final int BATCH_LIMIT = 99;
 
-	private static final int SLEEP_TIME_MS = 5000;
+	// 5 seconds wait after max API calls
+	private final int SLEEP_TIME_MS = 5000;
 
 	private final ProcessedDatesService processedDatesService;
 
@@ -82,8 +82,8 @@ public class deliveryPriceVolumeController {
 
 					// Fetch Data
 					JsonNode response = this.fetchNSEAPI.NSEAPICall(url);
-					TreeSet<PriceDeliveryVolume> pdvList = this.priceDeliveryVolumeService.parseStockData(response,
-							data.getTicker());
+					TreeSet<PriceDeliveryVolume> pdvList = this.priceDeliveryVolumeService
+							.parseStockDataAndProduce(response, data.getTicker());
 
 					// Save the Data
 					priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
