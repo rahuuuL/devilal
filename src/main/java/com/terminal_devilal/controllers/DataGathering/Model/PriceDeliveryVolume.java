@@ -7,11 +7,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "pdvt")
 @IdClass(TickerDateId.class)
+@Table(name = "pdvt", indexes = { @Index(name = "idx_date", columnList = "date") }) // this creates an index on date
 public class PriceDeliveryVolume {
 
 	@Id
