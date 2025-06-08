@@ -1,13 +1,14 @@
 package com.terminal_devilal.controllers.Advice;
 
+import java.io.IOException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.terminal_devilal.controllers.DataGathering.Exception.InvalidOrEmptyNSEData;
-
-import java.io.IOException;
+import com.terminal_devilal.controllers.Functional.Beta.Exception.BetaCalcException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -34,5 +35,10 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(InvalidOrEmptyNSEData.class)
 	public void invalidorEmptyNSEData(InvalidOrEmptyNSEData ex) {
 		System.out.println(ex.getLocalizedMessage());
+	}
+
+	@ExceptionHandler(BetaCalcException.class)
+	public ResponseEntity<String> invalidorEmptyNSEData(BetaCalcException ex) {
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
 	}
 }
