@@ -5,7 +5,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.configurations.KafkaProducerService;
 import com.terminal_devilal.controllers.DataGathering.DAO.PriceDeliveryVolumeDAO;
+import com.terminal_devilal.controllers.DataGathering.DAO.StockClosePrice;
 import com.terminal_devilal.controllers.DataGathering.Exception.DateParserException;
 import com.terminal_devilal.controllers.DataGathering.Model.PriceDeliveryVolume;
 
@@ -22,6 +25,9 @@ public class PriceDeliveryVolumeService {
 	private final PriceDeliveryVolumeDAO repository;
 
 	private final KafkaProducerService kafkaProducerService;
+
+	// Static date formatter reused to avoid re-creating it every time
+	private final DateTimeFormatter NSE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
 	public PriceDeliveryVolumeService(PriceDeliveryVolumeDAO repository, KafkaProducerService kafkaProducerService) {
 		super();
@@ -43,8 +49,25 @@ public class PriceDeliveryVolumeService {
 		return repository.findByTickerAndDateBetween(Ticker, ToDate, ToDate);
 	}
 
-	// Static date formatter reused to avoid re-creating it every time
-	private final DateTimeFormatter NSE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
+	/**
+	 * Get all stocks/tickers close prices grouped by stock/ticker
+	 */
+	public Map<String, List<Double>> getGroupedClosePrices(LocalDate fromDate) {
+		return repository.getClosePrices(fromDate).stream()
+				// Group prices by ticker
+				.collect(Collectors.groupingBy(StockClosePrice::getTicker, // Key: ticker
+						Collectors.mapping(StockClosePrice::getClose, Collectors.toList()) // Value: List of close
+																							// prices
+				));
+	}
+
+	/**
+	 * Get close prices for a specific stocks from a specific date.
+	 */
+	public Map<String, List<Double>> getClosePricesForTickerSince(LocalDate fromDate, List<String> tickers) {
+		return repository.getClosePricesForStocks(fromDate, tickers).stream().collect(Collectors.groupingBy(
+				StockClosePrice::getTicker, Collectors.mapping(StockClosePrice::getClose, Collectors.toList())));
+	}
 
 	// Mapper Utility function
 	public TreeSet<PriceDeliveryVolume> parseStockDataAndProduce(JsonNode node, String ticker) {
