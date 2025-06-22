@@ -1,5 +1,6 @@
 package com.terminal_devilal.controllers.DataGathering.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -28,39 +29,42 @@ public class AverageTrueRangeService {
 	public void saveAllATR(List<AverageTrueRange> averageTrueRanges) {
 		this.averageTrueRangeDAO.saveAll(averageTrueRanges);
 	}
-	
+
 	@Transactional
 	public void saveATR(AverageTrueRange averageTrueRanges) {
 		this.averageTrueRangeDAO.save(averageTrueRanges);
 	}
-	
-    /**
-     * Calculates the True Range (TR) for a single period.
-     *
-     * @param high Today's high price
-     * @param low Today's low price
-     * @param prevClose Previous day's closing price
-     * @return True Range
-     */
-    public double calculateTrueRange(double high, double low, double prevClose) {
-        double range1 = high - low;
-        double range2 = Math.abs(high - prevClose);
-        double range3 = Math.abs(low - prevClose);
 
-        return Math.max(range1, Math.max(range2, range3));
-    }
-    
+	public List<AverageTrueRange> getATRForTickerFromDate(String ticker, LocalDate fromDate) {
+		return averageTrueRangeDAO.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
+	}
+
+	/**
+	 * Calculates the True Range (TR) for a single period.
+	 *
+	 * @param high      Today's high price
+	 * @param low       Today's low price
+	 * @param prevClose Previous day's closing price
+	 * @return True Range
+	 */
+	public double calculateTrueRange(double high, double low, double prevClose) {
+		double range1 = high - low;
+		double range2 = Math.abs(high - prevClose);
+		double range3 = Math.abs(low - prevClose);
+
+		return Math.max(range1, Math.max(range2, range3));
+	}
+
 	public void processATR(JsonNode jsonNode) {
-			PriceDeliveryVolume pdv = this.priceDeliveryVolumeService.parseStockData(jsonNode);
+		PriceDeliveryVolume pdv = this.priceDeliveryVolumeService.parseStockData(jsonNode);
 
-			// Calc ATR
-			double trueRange = calculateTrueRange(pdv.getHigh(), pdv.getLow(),
-					pdv.getPrevoiusClosePrice());
+		// Calc ATR
+		double trueRange = calculateTrueRange(pdv.getHigh(), pdv.getLow(), pdv.getPrevoiusClosePrice());
 
-			// Make ATR object and add to list
-			AverageTrueRange averageTrueRange = new AverageTrueRange(pdv.getTicker(), pdv.getDate(), trueRange);
-			saveATR(averageTrueRange);
-			
-		}
+		// Make ATR object and add to list
+		AverageTrueRange averageTrueRange = new AverageTrueRange(pdv.getTicker(), pdv.getDate(), trueRange);
+		saveATR(averageTrueRange);
+
+	}
 
 }
