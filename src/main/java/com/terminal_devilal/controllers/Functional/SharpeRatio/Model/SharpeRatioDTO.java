@@ -4,11 +4,22 @@ public class SharpeRatioDTO {
 	private double rawSharpe;
 	private double annualizedSharpe;
 	private int daysUsed;
+	private double rawSortino;
 
-	public SharpeRatioDTO(double rawSharpe, double annualizedSharpe, int daysUsed) {
+	public SharpeRatioDTO(double rawSharpe, double annualizedSharpe, int daysUsed, double rawSortino) {
+		super();
 		this.rawSharpe = rawSharpe;
 		this.annualizedSharpe = annualizedSharpe;
 		this.daysUsed = daysUsed;
+		this.rawSortino = rawSortino;
+	}
+
+	public double getRawSortino() {
+		return rawSortino;
+	}
+
+	public void setRawSortino(double rawSortino) {
+		this.rawSortino = rawSortino;
 	}
 
 	public double getRawSharpe() {
