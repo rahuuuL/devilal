@@ -23,4 +23,10 @@ public interface PriceDeliveryVolumeDAO extends JpaRepository<PriceDeliveryVolum
 	@Query("SELECT sp.ticker AS ticker, sp.close AS close "
 			+ "FROM PriceDeliveryVolume sp WHERE sp.date >= :from AND sp.ticker IN (:tickers) ORDER BY sp.date")
 	List<StockClosePrice> getClosePricesForStocks(@Param("from") LocalDate from, @Param("tickers") List<String> tickers);
+	
+	List<PriceDeliveryVolume> findByTickerAndDateAfterOrderByDateAsc(String ticker, LocalDate fromDate);
+	
+    List<String> findDistinctTicker();
+    
+    List<PriceDeliveryVolume> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
 }
