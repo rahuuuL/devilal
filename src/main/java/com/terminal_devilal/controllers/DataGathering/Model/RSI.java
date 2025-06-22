@@ -16,7 +16,7 @@ public class RSI {
 	@Id
 	@Column(name = "ticker")
 	private String ticker;
-	
+
 	@Id
 	@Column(name = "date")
 	private LocalDate date;
@@ -24,11 +24,19 @@ public class RSI {
 	@Column(name = "close_diff")
 	private double closeDiff;
 
-	public RSI(String ticker, LocalDate date, double closeDiff) {
+	@Column(name = "14_days_rsi")
+	private double FourtheenDaysRSI;
+
+	@Column(name = "21_days_rsi")
+	private double TweentyOneDaysRSI;
+
+	public RSI(String ticker, LocalDate date, double closeDiff, double fourtheenDaysRSI, double tweentyOneDaysRSI) {
 		super();
 		this.ticker = ticker;
 		this.date = date;
 		this.closeDiff = closeDiff;
+		FourtheenDaysRSI = fourtheenDaysRSI;
+		TweentyOneDaysRSI = tweentyOneDaysRSI;
 	}
 
 	public RSI() {
