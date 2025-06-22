@@ -26,6 +26,7 @@ public interface PriceDeliveryVolumeDAO extends JpaRepository<PriceDeliveryVolum
 	
 	List<PriceDeliveryVolume> findByTickerAndDateAfterOrderByDateAsc(String ticker, LocalDate fromDate);
 	
+	@Query("SELECT DISTINCT p.ticker FROM PriceDeliveryVolume p")
     List<String> findDistinctTicker();
     
     List<PriceDeliveryVolume> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);

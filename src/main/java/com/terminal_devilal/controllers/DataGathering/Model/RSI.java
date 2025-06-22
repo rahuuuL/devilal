@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @IdClass(TickerDateId.class)
-@Table(name = "vwap")
+@Table(name = "rsi")
 public class RSI {
 
 	@Id

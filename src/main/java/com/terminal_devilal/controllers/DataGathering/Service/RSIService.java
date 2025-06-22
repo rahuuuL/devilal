@@ -3,6 +3,7 @@ package com.terminal_devilal.controllers.DataGathering.Service;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -50,11 +51,11 @@ public class RSIService {
 
 		// Get RSI for 14 and 21 days
 
-		List<RSI> FourtheenDayData = this.rsidao.findTop14ByTickerOrderByDateDesc(pdv.getTicker());
+		List<RSI> FourtheenDayData = this.rsidao.findRecentRSIs(pdv.getTicker(), PageRequest.of(0, 14));
 		double FourtheenDatRSI = FourtheenDayData.size() == 14 ? calculateRSI(FourtheenDayData) : 0;
 
 		// Get RSI for 21 days
-		List<RSI> TwentyOneDayData = this.rsidao.findTop14ByTickerOrderByDateDesc(pdv.getTicker());
+		List<RSI> TwentyOneDayData = this.rsidao.findRecentRSIs(pdv.getTicker(), PageRequest.of(0, 21));
 		double TwentyOneDayRSI = TwentyOneDayData.size() == 21 ? calculateRSI(TwentyOneDayData) : 0;
 
 		// Save RSI
