@@ -16,7 +16,7 @@ import com.terminal_devilal.controllers.DataGathering.Service.RSIService;
 @RequestMapping("/api/devilal/rsi")
 public class RSIController {
 
-	private RSIService rsiService;
+	private final RSIService rsiService;
 
 	public RSIController(RSIService rsiService) {
 		super();
