@@ -30,4 +30,17 @@ public interface PriceDeliveryVolumeDAO extends JpaRepository<PriceDeliveryVolum
     List<String> findDistinctTicker();
     
     List<PriceDeliveryVolume> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
+    
+    @Query(value = """
+    	    SELECT p.*
+    	    FROM pdvt p
+    	    JOIN (
+    	        SELECT ticker, MAX(date) AS max_date
+    	        FROM pdvt
+    	        WHERE ticker IN (:tickers)
+    	        GROUP BY ticker
+    	    ) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
+    	    """, nativeQuery = true)
+    List<PriceDeliveryVolume> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
+
 }
