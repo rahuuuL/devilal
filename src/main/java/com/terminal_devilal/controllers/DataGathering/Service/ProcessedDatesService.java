@@ -29,6 +29,7 @@ public class ProcessedDatesService {
 		if (dataFetchHistroy.isPresent()) {
 			DataFetchHistroy updateData = dataFetchHistroy.get();
 			updateData.setPdvtLastDate(pdvtLastProcessedDate);
+			repository.save(updateData);
 		}
 	}
 

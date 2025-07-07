@@ -48,6 +48,10 @@ public class PriceDeliveryVolumeService {
 	public List<PriceDeliveryVolume> getAllPdvWithinDate(String Ticker, LocalDate FromDate, LocalDate ToDate) {
 		return repository.findByTickerAndDateBetween(Ticker, ToDate, ToDate);
 	}
+	
+	public List<PriceDeliveryVolume> getLatestRecordForTickers(List<String> tickers) {
+		return repository.findLatestRecordForTickers(tickers);
+	}
 
 	/**
 	 * Get all stocks/tickers close prices grouped by stock/ticker
