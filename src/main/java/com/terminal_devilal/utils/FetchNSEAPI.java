@@ -22,6 +22,9 @@ public class FetchNSEAPI {
 	private final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
 
 	private final String PDV_BASE_URL = "https://www.nseindia.com/api/historicalOR/generateSecurityWiseHistoricalData?from=%s&to=%s&symbol=%s&type=priceVolumeDeliverable&series=EQ";
+	
+	private final String TRADE_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s&section=trade_info";
+
 
 	public JsonNode NSEAPICall(String url) throws IOException, InterruptedException {
 
@@ -47,10 +50,6 @@ public class FetchNSEAPI {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode json = mapper.readTree(response.body());
 
-//		if (!isValidPDVData(json)) {
-//			throw new InvalidOrEmptyNSEData("Failed: " + "Invalid PDV response " + " - " + json.toPrettyString());
-//		}
-
 		return json;
 	}
 
@@ -66,6 +65,18 @@ public class FetchNSEAPI {
 		String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
 		return String.format(PDV_BASE_URL, fromDate, toDate, encodedSymbol);
 	}
+	
+	/**
+	 * Builds the NSE Trade Info URL by replacing the symbol placeholder.
+	 *
+	 * @param symbol the stock symbol (e.g., "INFY")
+	 * @return a complete URL with the symbol inserted and properly encoded
+	 */
+	public String buildTradeInfoUrl(String symbol) {
+	    String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
+	    return String.format(TRADE_INFO, encodedSymbol);
+	}
+
 
 //	private boolean isValidPDVData(JsonNode node) {
 //		JsonNode data = node.path("data");

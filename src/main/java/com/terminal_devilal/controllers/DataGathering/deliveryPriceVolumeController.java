@@ -5,10 +5,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,8 +20,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.Utils.FetchNSEAPI;
 import com.terminal_devilal.controllers.DataGathering.Model.DataFetchHistroy;
 import com.terminal_devilal.controllers.DataGathering.Model.PriceDeliveryVolume;
+import com.terminal_devilal.controllers.DataGathering.Model.TradeInfo;
 import com.terminal_devilal.controllers.DataGathering.Service.PriceDeliveryVolumeService;
 import com.terminal_devilal.controllers.DataGathering.Service.ProcessedDatesService;
+import com.terminal_devilal.controllers.DataGathering.Service.TradeInfoService;
 
 @RestController
 @RequestMapping("/pdv")
@@ -39,20 +43,27 @@ public class deliveryPriceVolumeController {
 	private final ProcessedDatesService processedDatesService;
 
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
+	
+	private final TradeInfoService tradeInfoService;
 
 	private final FetchNSEAPI fetchNSEAPI;
 
 	public deliveryPriceVolumeController(ProcessedDatesService processedDatesService,
-			PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI) {
+			PriceDeliveryVolumeService priceDeliveryVolumeService, TradeInfoService tradeInfoService,
+			FetchNSEAPI fetchNSEAPI) {
 		super();
 		this.processedDatesService = processedDatesService;
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
+		this.tradeInfoService = tradeInfoService;
 		this.fetchNSEAPI = fetchNSEAPI;
 	}
+
+
 
 	@GetMapping("/revise-data")
 	public void processPdvDataTillDate() {
 		List<DataFetchHistroy> processedDates = processedDatesService.getProcessedDatesForTickers();
+		processedDates = processedDates.stream().filter(data -> data.getPdvtLastDate().isBefore(LocalDate.now())).collect(Collectors.toList());
 		int total = processedDates.size();
 
 		ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -79,12 +90,20 @@ public class deliveryPriceVolumeController {
 					// Make URL
 					String fromDate = data.getPdvtLastDate().format(FORMATTER);
 					String toDate = LocalDate.now().format(FORMATTER);
-					String url = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
+					String pdvUrl = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
+					String tradeInfoUrl = this.fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
 
-					// Fetch Data
-					JsonNode response = this.fetchNSEAPI.NSEAPICall(url);
+					// Fetch Data PDV Data
+					JsonNode pdvResponse = this.fetchNSEAPI.NSEAPICall(pdvUrl);
 					TreeSet<PriceDeliveryVolume> pdvList = this.priceDeliveryVolumeService
-							.parseStockDataAndProduce(response, data.getTicker());
+							.parseStockDataAndProduce(pdvResponse, data.getTicker());
+					
+					// Fetch Data Trade Info Data and Save the data
+					 JsonNode tradeInfoResponse = this.fetchNSEAPI.NSEAPICall(tradeInfoUrl);
+					 Optional<TradeInfo> info =  this.tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(), LocalDate.now());
+					 info.ifPresent(tradeInfo -> this.tradeInfoService.saveTradeInfo(tradeInfo));
+					 
+					
 
 					// Save the Data
 					priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
@@ -99,6 +118,7 @@ public class deliveryPriceVolumeController {
 				// Track and print progress
 				int current = counter.incrementAndGet();
 				double progress = (100.0 * current) / total;
+				System.out.println("Processed ticker : " + data.getTicker());
 				System.out.printf("Progress: %.2f%% (%d/%d completed)\n", progress, current, total);
 			});
 		}
