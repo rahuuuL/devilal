@@ -29,7 +29,7 @@ public class KafkaMessageConsumer {
 		this.vwapService = vwapService;
 	}
 
-	@KafkaListener(topics = "pdv-data", groupId = "devilal-group")
+	@KafkaListener(topics = "pdv-data", groupId = "devilal-group", concurrency = "4")
 	public void listen(String pdv) {
 		getJsonNode(pdv).ifPresent(jsonNode -> {
 			
