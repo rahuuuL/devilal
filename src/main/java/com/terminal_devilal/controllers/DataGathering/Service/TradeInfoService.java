@@ -40,9 +40,8 @@ public class TradeInfoService {
             tradeInfo.setTotalMarketCap(getDouble(tradeInfoNode, "totalMarketCap"));
             tradeInfo.setFfmc(getDouble(tradeInfoNode, "ffmc"));
             tradeInfo.setImpactCost(getDouble(tradeInfoNode, "impactCost"));
-            tradeInfo.setCmDailyVolatility(getDouble(tradeInfoNode, "cmDailyVolatility"));
-            tradeInfo.setCmAnnualVolatility(getDouble(tradeInfoNode, "cmAnnualVolatility"));
-
+            tradeInfo.setCmDailyVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmDailyVolatility")));
+            tradeInfo.setCmAnnualVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmAnnualVolatility")));
 
             return Optional.of(tradeInfo);
         } catch (Exception e) {
@@ -56,6 +55,22 @@ public class TradeInfoService {
             return node.get(key).asDouble();
         }
         System.err.println("Missing or invalid numeric key: " + key);
+        return null;
+    }
+    
+    private double parseDoubleSafe(String value) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return 0.0; // or Double.NaN, or throw, depending on your needs
+        }
+    }
+    
+    private static String getString(JsonNode node, String key) {
+        if (node.has(key)) {
+            return node.get(key).asText();
+        }
+        System.err.println("Missing or invalid string key: " + key);
         return null;
     }
     
