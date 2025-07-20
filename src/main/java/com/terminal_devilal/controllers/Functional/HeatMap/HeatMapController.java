@@ -2,7 +2,6 @@ package com.terminal_devilal.controllers.Functional.HeatMap;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.controllers.Functional.HeatMap.DAO.HeatMapRepository;
-import com.terminal_devilal.controllers.Functional.HeatMap.DAO.VolumeAnalysisRepository;
 import com.terminal_devilal.controllers.Functional.HeatMap.Model.HeatMapDTO;
 import com.terminal_devilal.controllers.Functional.HeatMap.Model.VolumeAnalysisDTO;
+import com.terminal_devilal.controllers.Functional.HeatMap.Service.VolumeAnalysisService;
 
 @RestController
 @RequestMapping("/api/devilal")
@@ -21,12 +20,12 @@ public class HeatMapController {
 
 	private final HeatMapRepository heatMapRepository;
 
-	private final VolumeAnalysisRepository volumeAnalysisRepository;
+	private final VolumeAnalysisService analysisService;
 
-	public HeatMapController(HeatMapRepository heatMapRepository, VolumeAnalysisRepository volumeAnalysisRepository) {
+	public HeatMapController(HeatMapRepository heatMapRepository, VolumeAnalysisService analysisService) {
 		super();
 		this.heatMapRepository = heatMapRepository;
-		this.volumeAnalysisRepository = volumeAnalysisRepository;
+		this.analysisService = analysisService;
 	}
 
 	/**
@@ -46,13 +45,7 @@ public class HeatMapController {
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
-		List<Object[]> results = volumeAnalysisRepository.findVolumeAnalysis(fromDate, toDate);
-		
-		return results.stream()
-				.map(obj -> new VolumeAnalysisDTO((String) obj[0], ((java.sql.Date) obj[1]).toLocalDate(),
-						((Number) obj[2]).longValue(), ((Number) obj[3]).doubleValue(), ((Number) obj[4]).doubleValue(),
-						((Number) obj[5]).doubleValue()))
-				.collect(Collectors.toList());
+		return this.analysisService.getVolumeAnalysis(fromDate, toDate);
 
 	}
 }

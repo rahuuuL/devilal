@@ -2,6 +2,7 @@ package com.terminal_devilal.controllers.Functional.BountyHunting.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,9 +79,12 @@ public class BountyHuntingService {
 		}
 
 		// Sort before returning
-//		dtoList.sort(Comparator.comparingDouble(BountyHuntingDTO::getTotalMarketCap).reversed()
-//				.thenComparingDouble(BountyHuntingDTO::getRawSharpe).reversed()
-//				.thenComparingDouble(BountyHuntingDTO::getRawSortino).reversed());
+		dtoList.sort(
+			    Comparator.comparingDouble(BountyHuntingDTO::getPercentageChange)
+			        .thenComparingDouble(BountyHuntingDTO::getTotalMarketCap).reversed()
+			        .thenComparingDouble(BountyHuntingDTO::getRawSharpe).reversed()
+			        .thenComparingDouble(BountyHuntingDTO::getRawSortino).reversed()
+			);
 
 		return dtoList;
 	}
