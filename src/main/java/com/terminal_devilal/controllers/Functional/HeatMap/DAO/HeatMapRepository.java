@@ -10,14 +10,14 @@ import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.controllers.DataGathering.Model.PriceDeliveryVolume;
 import com.terminal_devilal.controllers.DataGathering.Model.TickerDateId;
-import com.terminal_devilal.controllers.Functional.HeatMap.Model.HeatMapDTO;
+import com.terminal_devilal.controllers.Functional.HeatMap.Model.HeatMapProjection;
 
 @Repository
 public interface HeatMapRepository extends JpaRepository<PriceDeliveryVolume, TickerDateId> {
 
-	@Query("SELECT new com.terminal_devilal.controllers.Functional.HeatMap.Model.HeatMapDTO(s1.id.ticker, s1.open, s2.close, ((s2.close - s1.open) / s1.open) * 100) "
-			+ "FROM PriceDeliveryVolume s1 JOIN PriceDeliveryVolume s2 ON s1.id.ticker = s2.id.ticker "
-			+ "WHERE s1.id.date = :fromDate AND s2.id.date = :toDate ORDER BY ((s2.close - s1.open) / s1.open) * 100 DESC")
-	List<HeatMapDTO> findPriceChangesBetweenDates(@Param("fromDate") LocalDate fromDate,
-			@Param("toDate") LocalDate toDate);
+	@Query("SELECT s1.id.ticker AS ticker, s1.open AS open, s2.close AS close, ((s2.close - s1.open) / s1.open) * 100 AS percentChange "
+			+ "FROM PriceDeliveryVolume s1 " + "JOIN PriceDeliveryVolume s2 ON s1.id.ticker = s2.id.ticker "
+			+ "WHERE s1.id.date = :fromDate AND s2.id.date = :toDate")
+	List<HeatMapProjection> getHeatMapData(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
+
 }

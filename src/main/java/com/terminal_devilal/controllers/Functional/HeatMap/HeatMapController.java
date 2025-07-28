@@ -9,22 +9,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.controllers.Functional.HeatMap.DAO.HeatMapRepository;
 import com.terminal_devilal.controllers.Functional.HeatMap.Model.HeatMapDTO;
 import com.terminal_devilal.controllers.Functional.HeatMap.Model.VolumeAnalysisDTO;
+import com.terminal_devilal.controllers.Functional.HeatMap.Service.PriceHeatMap;
 import com.terminal_devilal.controllers.Functional.HeatMap.Service.VolumeAnalysisService;
 
 @RestController
 @RequestMapping("/api/devilal")
 public class HeatMapController {
 
-	private final HeatMapRepository heatMapRepository;
+	private final PriceHeatMap priceHeatMap;
 
 	private final VolumeAnalysisService analysisService;
 
-	public HeatMapController(HeatMapRepository heatMapRepository, VolumeAnalysisService analysisService) {
+	public HeatMapController(PriceHeatMap priceHeatMap, VolumeAnalysisService analysisService) {
 		super();
-		this.heatMapRepository = heatMapRepository;
+		this.priceHeatMap = priceHeatMap;
 		this.analysisService = analysisService;
 	}
 
@@ -37,7 +37,7 @@ public class HeatMapController {
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
-		return heatMapRepository.findPriceChangesBetweenDates(fromDate, toDate);
+		return priceHeatMap.getPriceHeatMap(fromDate, toDate);
 	}
 
 	@GetMapping("/volumeAnalysis")
