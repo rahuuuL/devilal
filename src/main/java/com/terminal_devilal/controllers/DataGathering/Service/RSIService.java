@@ -3,7 +3,6 @@ package com.terminal_devilal.controllers.DataGathering.Service;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,39 +48,42 @@ public class RSIService {
 		// Calc close diff
 		double closeDiff = pdv.getClose() - pdv.getPrevoiusClosePrice();
 
-		// Get RSI for 14 and 21 days
-
-		List<RSI> FourtheenDayData = this.rsidao.findRecentRSIs(pdv.getTicker(), PageRequest.of(0, 14));
-		double FourtheenDatRSI = FourtheenDayData.size() == 14 ? calculateRSI(FourtheenDayData) : 0;
+		// Get RSI for 14
+		List<RSI> FourtheenDayData = this.rsidao.findRecent14RSIs(pdv.getTicker());
+		double FourtheenDataRSI = FourtheenDayData.size() == 14 ? calculateRSI(FourtheenDayData) : 0;
 
 		// Get RSI for 21 days
-		List<RSI> TwentyOneDayData = this.rsidao.findRecentRSIs(pdv.getTicker(), PageRequest.of(0, 21));
+		List<RSI> TwentyOneDayData = this.rsidao.findRecent21RSIs(pdv.getTicker());
+
 		double TwentyOneDayRSI = TwentyOneDayData.size() == 21 ? calculateRSI(TwentyOneDayData) : 0;
 
 		// Save RSI
-		RSI rsi = new RSI(pdv.getTicker(), pdv.getDate(), closeDiff, FourtheenDatRSI, TwentyOneDayRSI);
+		RSI rsi = new RSI(pdv.getTicker(), pdv.getDate(), closeDiff, FourtheenDataRSI, TwentyOneDayRSI);
 		saveRSI(rsi);
 	}
 
 	private double calculateRSI(List<RSI> rsiData) {
 		double gainSum = 0.0;
 		double lossSum = 0.0;
+		int gainCount = 0;
+		int lossCount = 0;
 
 		for (RSI data : rsiData) {
 			double change = data.getCloseDiff();
 			if (change > 0) {
 				gainSum += change;
+				gainCount++;
 			} else if (change < 0) {
 				lossSum += Math.abs(change);
+				lossCount++;
 			}
 		}
 
-		double averageGain = gainSum / rsiData.size();
-		double averageLoss = lossSum / rsiData.size();
+		double averageGain = gainCount > 0 ? gainSum / gainCount : 0;
+		double averageLoss = lossCount > 0 ? lossSum / lossCount : 0;
 
-		// Avoid division by zero
 		if (averageLoss == 0) {
-			return 100.0; // RSI max
+			return 100.0; // Max RSI
 		}
 
 		double rs = averageGain / averageLoss;

@@ -3,7 +3,6 @@ package com.terminal_devilal.controllers.DataGathering.DAO;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,8 +14,11 @@ import com.terminal_devilal.controllers.DataGathering.Model.TickerDateId;
 @Repository
 public interface RSIDAO extends JpaRepository<RSI, TickerDateId> {
 
-	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker ORDER BY s.date DESC")
-	List<RSI> findRecentRSIs(@Param("ticker") String ticker, Pageable pageable);
+	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker ORDER BY s.date DESC LIMIT 14")
+	List<RSI> findRecent14RSIs(@Param("ticker") String ticker);
+	
+	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker ORDER BY s.date DESC LIMIT 21")
+	List<RSI> findRecent21RSIs(@Param("ticker") String ticker);
 
 	List<RSI> findByDate(LocalDate date);
 
