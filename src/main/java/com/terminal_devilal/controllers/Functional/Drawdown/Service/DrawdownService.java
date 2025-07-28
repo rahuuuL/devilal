@@ -35,9 +35,16 @@ public class DrawdownService {
 		for (String ticker : tickers) {
 			List<PriceDeliveryVolume> data = priceDeliveryVolumeDAO
 					.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
-			if (!data.isEmpty()) {
+			
+			double firstPrice = data.get(0).getClose();
+			double lastPrice = data.get(data.size() - 1).getClose();
+
+			double drawDownCheck = ((firstPrice - lastPrice) / firstPrice) * 100;
+			
+			if (!data.isEmpty() && (drawDownCheck < 0) ) {
 				resultMap.put(ticker, calculateDrawdowns(data));
 			}
+			
 		}
 
 		return resultMap;
