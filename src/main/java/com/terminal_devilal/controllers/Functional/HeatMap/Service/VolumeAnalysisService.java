@@ -62,7 +62,8 @@ public class VolumeAnalysisService {
 		}
 
 		dtoList = dtoList.stream()
-				.sorted(Comparator.comparingDouble(VolumeAnalysisDTO::getTimes)
+				.sorted(Comparator.comparing(VolumeAnalysisDTO::getOccurrenceDate)
+						.thenComparing(Comparator.comparingDouble(VolumeAnalysisDTO::getTimes))
 						.thenComparing(Comparator.comparing(VolumeAnalysisDTO::getOccurrenceDate).reversed())
 						.thenComparingDouble(VolumeAnalysisDTO::getTotalMarketCap).reversed())
 				.collect(Collectors.toList());
