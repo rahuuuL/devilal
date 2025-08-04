@@ -67,4 +67,10 @@ public class RSI {
 		this.closeDiff = closeDiff;
 	}
 
+	@Override
+	public String toString() {
+		return "RSI [ticker=" + ticker + ", date=" + date + ", closeDiff=" + closeDiff + ", FourtheenDaysRSI="
+				+ FourtheenDaysRSI + ", TweentyOneDaysRSI=" + TweentyOneDaysRSI + "]";
+	}
+
 }

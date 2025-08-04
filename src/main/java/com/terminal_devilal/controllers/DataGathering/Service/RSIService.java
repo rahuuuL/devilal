@@ -49,12 +49,11 @@ public class RSIService {
 		double closeDiff = pdv.getClose() - pdv.getPrevoiusClosePrice();
 
 		// Get RSI for 14
-		List<RSI> FourtheenDayData = this.rsidao.findRecent14RSIs(pdv.getTicker());
+		List<RSI> FourtheenDayData = this.rsidao.findRecent14RSIs(pdv.getTicker(), pdv.getDate());
 		double FourtheenDataRSI = FourtheenDayData.size() == 14 ? calculateRSI(FourtheenDayData) : 0;
 
 		// Get RSI for 21 days
-		List<RSI> TwentyOneDayData = this.rsidao.findRecent21RSIs(pdv.getTicker());
-
+		List<RSI> TwentyOneDayData = this.rsidao.findRecent21RSIs(pdv.getTicker(), pdv.getDate());
 		double TwentyOneDayRSI = TwentyOneDayData.size() == 21 ? calculateRSI(TwentyOneDayData) : 0;
 
 		// Save RSI
@@ -65,25 +64,22 @@ public class RSIService {
 	private double calculateRSI(List<RSI> rsiData) {
 		double gainSum = 0.0;
 		double lossSum = 0.0;
-		int gainCount = 0;
-		int lossCount = 0;
 
 		for (RSI data : rsiData) {
 			double change = data.getCloseDiff();
 			if (change > 0) {
 				gainSum += change;
-				gainCount++;
 			} else if (change < 0) {
 				lossSum += Math.abs(change);
-				lossCount++;
 			}
 		}
 
-		double averageGain = gainCount > 0 ? gainSum / gainCount : 0;
-		double averageLoss = lossCount > 0 ? lossSum / lossCount : 0;
+		double averageGain = gainSum / rsiData.size();
+		double averageLoss = lossSum / rsiData.size();
 
+		// Avoid division by zero
 		if (averageLoss == 0) {
-			return 100.0; // Max RSI
+			return 100.0; // RSI max
 		}
 
 		double rs = averageGain / averageLoss;

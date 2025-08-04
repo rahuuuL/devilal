@@ -14,11 +14,11 @@ import com.terminal_devilal.controllers.DataGathering.Model.TickerDateId;
 @Repository
 public interface RSIDAO extends JpaRepository<RSI, TickerDateId> {
 
-	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker ORDER BY s.date DESC LIMIT 14")
-	List<RSI> findRecent14RSIs(@Param("ticker") String ticker);
+	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker AND s.date <= :date ORDER BY s.date DESC LIMIT 14")
+	List<RSI> findRecent14RSIs(@Param("ticker") String ticker, @Param("date") LocalDate date);
 	
-	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker ORDER BY s.date DESC LIMIT 21")
-	List<RSI> findRecent21RSIs(@Param("ticker") String ticker);
+	@Query("SELECT s FROM RSI s WHERE s.ticker = :ticker AND s.date <= :date ORDER BY s.date DESC LIMIT 21")
+	List<RSI> findRecent21RSIs(@Param("ticker") String ticker, @Param("date") LocalDate date);
 
 	List<RSI> findByDate(LocalDate date);
 
