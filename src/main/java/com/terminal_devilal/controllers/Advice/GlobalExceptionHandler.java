@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.terminal_devilal.controllers.DataGathering.Exception.InvalidColumnException;
 import com.terminal_devilal.controllers.DataGathering.Exception.InvalidOrEmptyNSEData;
 import com.terminal_devilal.controllers.Functional.Beta.Exception.BetaCalcException;
 
@@ -27,7 +28,6 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(InterruptedException.class)
 	public ResponseEntity<String> handleInterruptedException(InterruptedException ex) {
-		// You can log the exception if needed
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 				.body("Exception occured due to a timeout, cancellation or thread interruption");
 	}
@@ -41,4 +41,11 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<String> invalidorEmptyNSEData(BetaCalcException ex) {
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
 	}
+
+	@ExceptionHandler(InvalidColumnException.class)
+	public ResponseEntity<String> handleInvalidColumnException(InvalidColumnException ex) {
+		String body = ex.getMessage();
+		return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+	}
+
 }

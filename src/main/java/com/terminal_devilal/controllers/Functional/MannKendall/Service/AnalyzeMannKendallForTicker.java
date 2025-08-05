@@ -11,9 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.terminal_devilal.controllers.DataGathering.DAO.PriceDeliveryVolumeRepositoryCustomImpl;
 import com.terminal_devilal.controllers.DataGathering.DAO.TradeInfoRepository;
 import com.terminal_devilal.controllers.DataGathering.Model.TradeInfo;
-import com.terminal_devilal.controllers.DataGathering.Service.PriceDeliveryVolumeService;
 import com.terminal_devilal.controllers.Functional.MannKendall.Model.MannKendallAPIResponse;
 import com.terminal_devilal.controllers.Functional.MannKendall.Model.MannKendallResponse;
 
@@ -22,30 +22,33 @@ public class AnalyzeMannKendallForTicker {
 
 	private static final Logger log = LoggerFactory.getLogger(AnalyzeMannKendallForTicker.class);
 
-	private final PriceDeliveryVolumeService deliveryVolumeService;
 	private final MannKendallService kendallService;
 	private final TradeInfoRepository tradeInfoDao;
+	private final PriceDeliveryVolumeRepositoryCustomImpl customImpl;
 
-	public AnalyzeMannKendallForTicker(PriceDeliveryVolumeService deliveryVolumeService,
-			MannKendallService kendallService, TradeInfoRepository tradeInfoDao) {
-		this.deliveryVolumeService = deliveryVolumeService;
+	public AnalyzeMannKendallForTicker(MannKendallService kendallService, TradeInfoRepository tradeInfoDao,
+			PriceDeliveryVolumeRepositoryCustomImpl customImpl) {
+		super();
 		this.kendallService = kendallService;
 		this.tradeInfoDao = tradeInfoDao;
+		this.customImpl = customImpl;
 	}
 
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate) {
-		Map<String, List<Double>> groupedClosePrices = getGroupedClosePrices(fromDate);
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName);
 		return analysisProcess(groupedClosePrices);
 	}
 
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, List<String> tickers) {
-		Map<String, List<Double>> groupedClosePrices = getClosePricesForTickerSince(fromDate, tickers);
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName,
+			List<String> tickers) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName,
+				tickers);
 		return analysisProcess(groupedClosePrices);
 	}
 
@@ -62,20 +65,6 @@ public class AnalyzeMannKendallForTicker {
 		);
 
 		return list;
-	}
-
-	/**
-	 * Get grouped close prices keyed by ticker.
-	 */
-	private Map<String, List<Double>> getGroupedClosePrices(LocalDate fromDate) {
-		return deliveryVolumeService.getGroupedClosePrices(fromDate);
-	}
-
-	/**
-	 * Get grouped close prices keyed by ticker.
-	 */
-	private Map<String, List<Double>> getClosePricesForTickerSince(LocalDate fromDate, List<String> tickers) {
-		return deliveryVolumeService.getClosePricesForTickerSince(fromDate, tickers);
 	}
 
 	/**

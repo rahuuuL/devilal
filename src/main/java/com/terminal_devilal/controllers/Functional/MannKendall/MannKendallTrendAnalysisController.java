@@ -30,19 +30,21 @@ public class MannKendallTrendAnalysisController {
 	 */
 	@GetMapping("/all")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
-			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
+			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam("column") String columnName) {
 
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate);
+		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
+				columnName);
 		return ResponseEntity.ok(results);
 	}
 
 	@GetMapping("/forTickers")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-			@RequestParam("tickers") List<String> tickers) {
+			@RequestParam("column") String columnName, @RequestParam("tickers") List<String> tickers) {
 
 		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
-				tickers);
+				columnName, tickers);
 		return ResponseEntity.ok(results);
 	}
 
