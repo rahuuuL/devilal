@@ -78,9 +78,19 @@ public class PriceDeliveryVolumeRepositoryCustomImpl {
 		));
 		cq.orderBy(cb.asc(root.get("date")));
 
-		return entityManager.createQuery(cq).getResultList().stream()
-				.map(tuple -> new TickerValue(tuple.get("ticker", String.class), tuple.get("value", Double.class)))
-				.collect(Collectors.toList());
+		return entityManager.createQuery(cq).getResultList().stream().map(tuple -> {
+			String ticker = tuple.get("ticker", String.class);
+			Object valueObj = tuple.get("value");
+
+			Double value;
+			if (valueObj instanceof Number) {
+				value = ((Number) valueObj).doubleValue();
+			} else {
+				value = 0.0; // or handle null/default as needed
+			}
+
+			return new TickerValue(ticker, value);
+		}).collect(Collectors.toList());
 	}
 
 	public Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate from, String inputColumnName,

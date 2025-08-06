@@ -4,34 +4,33 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.terminal_devilal.Utils.PythonStatsServer.PythonStatsServerAPIService;
 import com.terminal_devilal.controllers.DataGathering.DAO.PriceDeliveryVolumeRepositoryCustomImpl;
 import com.terminal_devilal.controllers.DataGathering.DAO.TradeInfoRepository;
 import com.terminal_devilal.controllers.DataGathering.Model.TradeInfo;
 import com.terminal_devilal.controllers.Functional.MannKendall.Model.MannKendallAPIResponse;
-import com.terminal_devilal.controllers.Functional.MannKendall.Model.MannKendallResponse;
 
 @Service
 public class AnalyzeMannKendallForTicker {
 
 	private static final Logger log = LoggerFactory.getLogger(AnalyzeMannKendallForTicker.class);
 
-	private final MannKendallService kendallService;
 	private final TradeInfoRepository tradeInfoDao;
 	private final PriceDeliveryVolumeRepositoryCustomImpl customImpl;
+	private final PythonStatsServerAPIService pythonClient;
 
-	public AnalyzeMannKendallForTicker(MannKendallService kendallService, TradeInfoRepository tradeInfoDao,
-			PriceDeliveryVolumeRepositoryCustomImpl customImpl) {
+	public AnalyzeMannKendallForTicker(TradeInfoRepository tradeInfoDao,
+			PriceDeliveryVolumeRepositoryCustomImpl customImpl, PythonStatsServerAPIService pythonClient) {
 		super();
-		this.kendallService = kendallService;
 		this.tradeInfoDao = tradeInfoDao;
 		this.customImpl = customImpl;
+		this.pythonClient = pythonClient;
 	}
 
 	/**
@@ -53,41 +52,30 @@ public class AnalyzeMannKendallForTicker {
 	}
 
 	private List<MannKendallAPIResponse> analysisProcess(Map<String, List<Double>> groupedClosePrices) {
-		List<MannKendallAPIResponse> list = groupedClosePrices.entrySet().parallelStream().map(this::processTickerEntry)
-				.filter(Objects::nonNull).collect(Collectors.toList());
+		// Call batch API once with all tickers & prices
+		List<MannKendallAPIResponse> batchResponse = pythonClient.analyzeBatch(groupedClosePrices);
 
-		list.sort(Comparator.comparingDouble(MannKendallAPIResponse::getTotalMarketCap).reversed()
-				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getP))
+		for (MannKendallAPIResponse resp : batchResponse) {
+			TradeInfo tradeInfo = fetchLatestTradeInfo(resp.getTicker());
+			resp.setTradeInfo(tradeInfo);
+		}
+
+		// Null handling
+		batchResponse = batchResponse.stream().filter(
+				resp -> resp.getP() != null && resp.getZ() != null && resp.getS() != null && resp.getVar_s() != null)
+				.collect(Collectors.toList());
+
+		Comparator<MannKendallAPIResponse> comparator = Comparator
+				.comparing((MannKendallAPIResponse resp) -> resp.getSlope() != null ? resp.getSlope()
+						: Double.NEGATIVE_INFINITY, Comparator.reverseOrder())
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getZ).reversed())
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getS).reversed())
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getVar_s))
+				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getTotalMarketCap).reversed());
 
-		);
+		batchResponse.sort(comparator);
 
-		return list;
-	}
-
-	/**
-	 * Process a map entry of ticker to its price series. Returns
-	 * MannKendallAPIResponse or null if error/empty data.
-	 */
-	private MannKendallAPIResponse processTickerEntry(Map.Entry<String, List<Double>> entry) {
-		String ticker = entry.getKey();
-		List<Double> priceSeries = entry.getValue();
-
-		if (priceSeries == null || priceSeries.isEmpty()) {
-			log.warn("Skipping ticker {} due to empty price series.", ticker);
-			return null;
-		}
-
-		try {
-			MannKendallResponse mkResponse = kendallService.runMannKendall(priceSeries);
-			TradeInfo tradeInfo = fetchLatestTradeInfo(ticker);
-			return new MannKendallAPIResponse(ticker, tradeInfo, mkResponse);
-		} catch (Exception e) {
-			log.error("Failed to process ticker {}: {}", ticker, e.getMessage(), e);
-			return null;
-		}
+		return batchResponse;
 	}
 
 	/**

@@ -13,7 +13,7 @@ import jakarta.persistence.Table;
 @IdClass(TickerDateId.class)
 @Table(name = "tradeInfo")
 public class TradeInfo {
-	
+
 	@Id
 	@Column(name = "ticker")
 	private String ticker;
@@ -21,27 +21,27 @@ public class TradeInfo {
 	@Id
 	@Column(name = "date")
 	private LocalDate date;
-	
-    @Column(name = "total_traded_volume")
-    private double totalTradedVolume;
 
-    @Column(name = "total_traded_value")
-    private double totalTradedValue;
+	@Column(name = "total_traded_volume")
+	private double totalTradedVolume;
 
-    @Column(name = "total_market_cap")
-    private double totalMarketCap;
+	@Column(name = "total_traded_value")
+	private double totalTradedValue;
 
-    @Column(name = "ffmc")
-    private double ffmc;
+	@Column(name = "total_market_cap")
+	private double totalMarketCap;
 
-    @Column(name = "impact_cost")
-    private double impactCost;
+	@Column(name = "ffmc")
+	private double ffmc;
 
-    @Column(name = "daily_volatility")
-    private double cmDailyVolatility;
+	@Column(name = "impact_cost")
+	private double impactCost;
 
-    @Column(name = "annual_volatility")
-    private double cmAnnualVolatility;
+	@Column(name = "daily_volatility")
+	private double cmDailyVolatility;
+
+	@Column(name = "annual_volatility")
+	private double cmAnnualVolatility;
 
 	public String getTicker() {
 		return ticker;
@@ -128,5 +128,17 @@ public class TradeInfo {
 		return Objects.hash(cmAnnualVolatility, cmDailyVolatility, date, ffmc, impactCost, ticker, totalMarketCap,
 				totalTradedValue, totalTradedVolume);
 	}
-    
+
+	public TradeInfo() {
+		this.ticker = "";
+		this.date = LocalDate.MIN;
+		this.totalTradedVolume = 0.0;
+		this.totalTradedValue = 0.0;
+		this.totalMarketCap = 0.0;
+		this.ffmc = 0.0;
+		this.impactCost = 0.0;
+		this.cmDailyVolatility = 0.0;
+		this.cmAnnualVolatility = 0.0;
+	}
+
 }

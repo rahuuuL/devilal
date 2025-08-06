@@ -33,14 +33,7 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 		this.ticker = ticker;
 
 		// Copy all trade info details from info to this object
-		this.tradeInfoDate = info.getDate();
-		this.totalTradedVolume = info.getTotalTradedVolume();
-		this.totalTradedValue = info.getTotalTradedValue();
-		this.totalMarketCap = info.getTotalMarketCap();
-		this.ffmc = info.getFfmc();
-		this.impactCost = info.getImpactCost();
-		this.cmDailyVolatility = info.getCmDailyVolatility();
-		this.cmAnnualVolatility = info.getCmAnnualVolatility();
+		setTradeInfo(info);
 
 		// Copy all fields from response to this
 		this.setTrend(response.getTrend());
@@ -52,6 +45,18 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 		this.setVar_s(response.getVar_s());
 		this.setSlope(response.getSlope());
 		this.setIntercept(response.getIntercept());
+	}
+
+	public void setTradeInfo(TradeInfo info) {
+		// Copy all trade info details from info to this object
+		this.tradeInfoDate = info.getDate();
+		this.totalTradedVolume = info.getTotalTradedVolume();
+		this.totalTradedValue = info.getTotalTradedValue();
+		this.totalMarketCap = info.getTotalMarketCap();
+		this.ffmc = info.getFfmc();
+		this.impactCost = info.getImpactCost();
+		this.cmDailyVolatility = info.getCmDailyVolatility();
+		this.cmAnnualVolatility = info.getCmAnnualVolatility();
 	}
 
 	public String getTicker() {
