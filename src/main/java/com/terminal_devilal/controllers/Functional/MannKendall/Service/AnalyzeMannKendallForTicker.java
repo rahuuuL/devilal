@@ -2,6 +2,7 @@ package com.terminal_devilal.controllers.Functional.MannKendall.Service;
 
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -15,6 +16,8 @@ import com.terminal_devilal.controllers.DataGathering.DAO.PriceDeliveryVolumeRep
 import com.terminal_devilal.controllers.DataGathering.DAO.TradeInfoRepository;
 import com.terminal_devilal.controllers.DataGathering.Model.TradeInfo;
 import com.terminal_devilal.controllers.Functional.MannKendall.Model.MannKendallAPIResponse;
+import com.terminal_devilal.controllers.Functional.SharpeRatio.Model.SharpeRatioDTO;
+import com.terminal_devilal.controllers.Functional.SharpeRatio.Service.SharpeRatioService;
 
 @Service
 public class AnalyzeMannKendallForTicker {
@@ -25,39 +28,59 @@ public class AnalyzeMannKendallForTicker {
 	private final PriceDeliveryVolumeRepositoryCustomImpl customImpl;
 	private final PythonStatsServerAPIService pythonClient;
 
+	private final SharpeRatioService ratioService;
+
 	public AnalyzeMannKendallForTicker(TradeInfoRepository tradeInfoDao,
-			PriceDeliveryVolumeRepositoryCustomImpl customImpl, PythonStatsServerAPIService pythonClient) {
+			PriceDeliveryVolumeRepositoryCustomImpl customImpl, PythonStatsServerAPIService pythonClient,
+			SharpeRatioService ratioService) {
 		super();
 		this.tradeInfoDao = tradeInfoDao;
 		this.customImpl = customImpl;
 		this.pythonClient = pythonClient;
-	}
-
-	/**
-	 * Public method to get Mann-Kendall trend analysis results by ticker.
-	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName);
-		return analysisProcess(groupedClosePrices);
+		this.ratioService = ratioService;
 	}
 
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
 	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName,
-			List<String> tickers) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName,
-				tickers);
-		return analysisProcess(groupedClosePrices);
+			double riskFreeRate) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName);
+		return analysisProcess(groupedClosePrices, fromDate, inputColumnName);
 	}
 
-	private List<MannKendallAPIResponse> analysisProcess(Map<String, List<Double>> groupedClosePrices) {
+	/**
+	 * Public method to get Mann-Kendall trend analysis results by ticker.
+	 */
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName,
+			List<String> tickers, double riskFreeRate) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName,
+				tickers);
+		return analysisProcess(groupedClosePrices, fromDate, inputColumnName);
+	}
+
+	private List<MannKendallAPIResponse> analysisProcess(Map<String, List<Double>> groupedClosePrices,
+			LocalDate fromDate, String inputColumnName) {
+
 		// Call batch API once with all tickers & prices
 		List<MannKendallAPIResponse> batchResponse = pythonClient.analyzeBatch(groupedClosePrices);
 
+		Map<String, SharpeRatioDTO> ratios = new HashMap<>();
+
+		// Get all the ratios
+		if (!inputColumnName.equals("volume")) {
+			ratios = this.ratioService.computeSharpeRatios(fromDate, 0.06,
+					batchResponse.stream().map(f -> f.getTicker()).collect(Collectors.toList()));
+		}
+
+		// set trade info and ratios
 		for (MannKendallAPIResponse resp : batchResponse) {
 			TradeInfo tradeInfo = fetchLatestTradeInfo(resp.getTicker());
 			resp.setTradeInfo(tradeInfo);
+			if (!inputColumnName.equals("volume")) {
+				resp.setSharpeRatioDTO(ratios.get(resp.getTicker()));
+			}
+
 		}
 
 		// Null handling
@@ -71,7 +94,15 @@ public class AnalyzeMannKendallForTicker {
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getZ).reversed())
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getS).reversed())
 				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getVar_s))
-				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getTotalMarketCap).reversed());
+				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getTotalMarketCap).reversed())
+				.thenComparing(resp -> {
+					SharpeRatioDTO dto = resp.getSharpeRatioDTO();
+					return dto != null ? dto.getRawSharpe() : Double.MIN_VALUE;
+				}, Comparator.reverseOrder()).thenComparing(resp -> {
+					SharpeRatioDTO dto = resp.getSharpeRatioDTO();
+					return dto != null ? dto.getRawSortino() : Double.MIN_VALUE;
+				}, Comparator.reverseOrder() // desc order
+				);
 
 		batchResponse.sort(comparator);
 

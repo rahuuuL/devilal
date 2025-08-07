@@ -2,7 +2,9 @@ package com.terminal_devilal.controllers.Functional.MannKendall.Model;
 
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.terminal_devilal.controllers.DataGathering.Model.TradeInfo;
+import com.terminal_devilal.controllers.Functional.SharpeRatio.Model.SharpeRatioDTO;
 
 public class MannKendallAPIResponse extends MannKendallResponse {
 
@@ -24,16 +26,23 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 
 	private double cmAnnualVolatility;
 
+	@JsonUnwrapped
+	private SharpeRatioDTO sharpeRatioDTO;
+
 	public MannKendallAPIResponse() {
 		super();
 	}
 
-	public MannKendallAPIResponse(String ticker, TradeInfo info, MannKendallResponse response) {
+	public MannKendallAPIResponse(String ticker, TradeInfo info, MannKendallResponse response,
+			SharpeRatioDTO sharpeRatioDTO) {
 		super();
 		this.ticker = ticker;
 
 		// Copy all trade info details from info to this object
 		setTradeInfo(info);
+
+		// Ratios Ratio
+		this.sharpeRatioDTO = sharpeRatioDTO;
 
 		// Copy all fields from response to this
 		this.setTrend(response.getTrend());
@@ -57,6 +66,14 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 		this.impactCost = info.getImpactCost();
 		this.cmDailyVolatility = info.getCmDailyVolatility();
 		this.cmAnnualVolatility = info.getCmAnnualVolatility();
+	}
+
+	public SharpeRatioDTO getSharpeRatioDTO() {
+		return sharpeRatioDTO;
+	}
+
+	public void setSharpeRatioDTO(SharpeRatioDTO sharpeRatioDTO) {
+		this.sharpeRatioDTO = sharpeRatioDTO;
 	}
 
 	public String getTicker() {
@@ -136,7 +153,7 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 		return "MannKendallAPIResponse [ticker=" + ticker + ", tradeInfoDate=" + tradeInfoDate + ", totalTradedVolume="
 				+ totalTradedVolume + ", totalTradedValue=" + totalTradedValue + ", totalMarketCap=" + totalMarketCap
 				+ ", ffmc=" + ffmc + ", impactCost=" + impactCost + ", cmDailyVolatility=" + cmDailyVolatility
-				+ ", cmAnnualVolatility=" + cmAnnualVolatility + "]";
+				+ ", cmAnnualVolatility=" + cmAnnualVolatility + ", sharpeRatioDTO=" + sharpeRatioDTO + "]";
 	}
 
 }

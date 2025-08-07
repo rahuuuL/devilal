@@ -14,6 +14,14 @@ public class SharpeRatioDTO {
 		this.rawSortino = rawSortino;
 	}
 
+	public SharpeRatioDTO() {
+		super();
+		this.rawSharpe = 0;
+		this.annualizedSharpe = 0;
+		this.daysUsed = 0;
+		this.rawSortino = 0;
+	}
+
 	public double getRawSortino() {
 		return rawSortino;
 	}
