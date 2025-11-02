@@ -54,17 +54,19 @@ public class NSECookie {
 
 	@GetMapping("/is-cookie-valid")
 	public ResponseEntity<Boolean> isCookieValid() throws IOException, InterruptedException {
-		String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-		String ticker = "HAL";
+		try {
+			String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+			String ticker = "HAL";
 
-		String url = String.format(
-				"https://www.nseindia.com/api/historical/securityArchives?from=%s&to=%s&symbol=%s&dataType=priceVolumeDeliverable&series=ALL",
-				today, today, ticker);
+			String url = String.format(
+					"https://www.nseindia.com/api/historical/securityArchives?from=%s&to=%s&symbol=%s&dataType=priceVolumeDeliverable&series=ALL",
+					today, today, ticker);
 
-		this.fetchNSEAPI.NSEAPICall(url);
-
-		return ResponseEntity.ok(true);
-
+			this.fetchNSEAPI.NSEAPICall(url);
+			return ResponseEntity.ok(true);
+		} catch (Exception e) {
+			return ResponseEntity.ok(false);
+		}
 	}
 
 }
