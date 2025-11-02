@@ -1,7 +1,9 @@
 package com.terminal_devilal.configurations.kakfa;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +17,7 @@ import com.terminal_devilal.indicators.vwap.service.VWAPService;
 @Service
 public class KafkaMessageConsumer {
 
+	private final Executor executor;
 	private final AverageTrueRangeService averageTrueRangeService;
 	private final RSIService rsiService;
 	private final VWAPService vwapService;
@@ -22,25 +25,27 @@ public class KafkaMessageConsumer {
 	private final ObjectMapper mapper = new ObjectMapper();
 
 	public KafkaMessageConsumer(AverageTrueRangeService averageTrueRangeService, RSIService rsiService,
-			VWAPService vwapService) {
+			VWAPService vwapService, @Qualifier("kafkaProcessingExecutor") Executor executor) {
 		super();
+		this.executor = executor;
 		this.averageTrueRangeService = averageTrueRangeService;
 		this.rsiService = rsiService;
 		this.vwapService = vwapService;
 	}
 
-	@KafkaListener(topics = "pdv-data", groupId = "devilal-group", concurrency = "4")
+	@KafkaListener(topics = "pdv-data", groupId = "devilal-group", concurrency = "32")
 	public void listen(String pdv) {
 		getJsonNode(pdv).ifPresent(jsonNode -> {
-			
-			// Process ATR
-			this.averageTrueRangeService.processATR(jsonNode);
-			
-			// Process RSI
-			this.rsiService.processRSI(jsonNode);
-			
-			// Process RSI
-			this.vwapService.processVwap(jsonNode);
+			executor.execute(() -> {
+				// Process ATR
+				this.averageTrueRangeService.processATR(jsonNode);
+
+				// Process RSI
+				this.rsiService.processRSI(jsonNode);
+
+				// Process RSI
+				this.vwapService.processVwap(jsonNode);
+			});
 		});
 	}
 
