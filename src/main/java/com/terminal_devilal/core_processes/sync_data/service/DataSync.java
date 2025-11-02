@@ -91,7 +91,6 @@ public class DataSync {
 					String fromDate = data.getPdvtLastDate().format(FORMATTER);
 					String toDate = getToDate(fromDate);
 					String pdvUrl = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
-					System.out.println(pdvUrl);
 					String tradeInfoUrl = this.fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
 
 					// Fetch Data PDV Data
