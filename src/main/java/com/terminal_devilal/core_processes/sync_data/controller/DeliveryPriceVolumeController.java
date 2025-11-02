@@ -1,147 +1,23 @@
 package com.terminal_devilal.core_processes.sync_data.controller;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
-import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
-import com.terminal_devilal.configurations.kakfa.KafkaProducerService;
-import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
-import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
-import com.terminal_devilal.utils.nse.FetchNSEAPI;
+import com.terminal_devilal.core_processes.sync_data.model.DataSyncProcessResponse;
+import com.terminal_devilal.core_processes.sync_data.service.DataSync;
 
 @RestController
 @RequestMapping("/pdv")
 public class DeliveryPriceVolumeController {
+	private DataSync dataSync;
 
-	// Setup date formatter to match API format like "25-05-2025"
-	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-
-	// Define number of threads to run in parallel (max API calls at a time)
-	private final int THREAD_POOL_SIZE = 50;
-
-	private final int BATCH_LIMIT = 99;
-
-	// 5 seconds wait after max API calls
-	private final int SLEEP_TIME_MS = 5000;
-
-	private final DataFetchHistoryService dataFetchHistoryService;
-
-	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
-
-	private final TradeInfoService tradeInfoService;
-
-	private final FetchNSEAPI fetchNSEAPI;
-
-	private final KafkaProducerService kafkaProducerService;
-
-	public DeliveryPriceVolumeController(DataFetchHistoryService dataFetchHistoryService,
-			PriceDeliveryVolumeService priceDeliveryVolumeService, TradeInfoService tradeInfoService,
-			FetchNSEAPI fetchNSEAPI, KafkaProducerService kafkaProducerService) {
-		super();
-		this.dataFetchHistoryService = dataFetchHistoryService;
-		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
-		this.tradeInfoService = tradeInfoService;
-		this.fetchNSEAPI = fetchNSEAPI;
-		this.kafkaProducerService = kafkaProducerService;
+	public DeliveryPriceVolumeController(DataSync dataSync) {
+		this.dataSync = dataSync;
 	}
 
 	@GetMapping("/revise-data")
-	public void processPdvDataTillDate() {
-		List<DataFetchEntity> processedDates = dataFetchHistoryService.getProcessedDatesForTickers();
-		processedDates = processedDates.stream().filter(data -> data.getPdvtLastDate().isBefore(LocalDate.now()))
-				.collect(Collectors.toList());
-		int total = processedDates.size();
-
-		ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-		AtomicInteger counter = new AtomicInteger(0);
-
-		for (int i = 0; i < total; i++) {
-			DataFetchEntity data = processedDates.get(i);
-
-			// Pause every BATCH API calls
-			if (i > 0 && i % BATCH_LIMIT == 0) {
-				System.out
-						.println("Submitted " + i + " API calls. Pausing for " + SLEEP_TIME_MS / 1000 + " seconds...");
-				try {
-					Thread.sleep(SLEEP_TIME_MS);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					System.err.println("Sleep interrupted: " + e.getMessage());
-					break;
-				}
-			}
-
-			executor.submit(() -> {
-				try {
-					// Make URL
-					String fromDate = data.getPdvtLastDate().format(FORMATTER);
-					String toDate = LocalDate.now().format(FORMATTER);
-					String pdvUrl = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
-					String tradeInfoUrl = this.fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
-
-					// Fetch Data PDV Data
-					JsonNode pdvResponse = this.fetchNSEAPI.NSEAPICall(pdvUrl);
-
-					TreeSet<PriceDeliveryVolumeEntity> pdvList = this.priceDeliveryVolumeService.parseStockData(pdvResponse,
-							data.getTicker());
-
-					// Fetch Data Trade Info Data and Save the data
-					JsonNode tradeInfoResponse = this.fetchNSEAPI.NSEAPICall(tradeInfoUrl);
-					Optional<TradeInfo> info = this.tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(),
-							LocalDate.now());
-					info.ifPresent(tradeInfo -> this.tradeInfoService.saveTradeInfo(tradeInfo));
-
-					// Save the Data
-					priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
-
-					// update last pdvt date
-					dataFetchHistoryService.updateLastDateForPdvt(data.getTicker(), pdvList.last().getDate());
-
-					// produce data to kafka for further processing
-					this.produceKafkaMessage(pdvResponse);
-
-				} catch (IOException | InterruptedException e) {
-					System.err.println("Error processing " + data.getTicker() + ": " + e.getMessage());
-				}
-
-				// Track and print progress
-				int current = counter.incrementAndGet();
-				double progress = (100.0 * current) / total;
-				System.out.println("Processed ticker : " + data.getTicker());
-				System.out.printf("Progress: %.2f%% (%d/%d completed)\n", progress, current, total);
-			});
-		}
-
-		executor.shutdown();
-	}
-
-	private void produceKafkaMessage(JsonNode node) {
-		JsonNode dataArray = node.path("data");
-
-		if (!dataArray.isArray()) {
-			System.out.print("Empty data" + node.toPrettyString());
-			return;
-		}
-
-		for (JsonNode item : dataArray) {
-			this.kafkaProducerService.sendMessage(item.toPrettyString());
-		}
+	public DataSyncProcessResponse processPdvDataTillDate() {
+		return this.dataSync.processPdvDataTillDate();
 	}
 }
