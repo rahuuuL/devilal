@@ -29,9 +29,9 @@ public class PDVController {
 	}
 
 	@GetMapping("/price-volume-data")
-	public Map<String, List<Double>> getClosePricesSinceDate(@RequestParam("tickers") List<String> tickers,
-			@RequestParam("fromDate") LocalDate fromDate) {
-		return priceDeliveryVolumeService.getClosePricesForTickerSince(fromDate, tickers);
+	public Map<String, List<PriceDeliveryVolumeEntity>> getClosePricesSinceDate(
+			@RequestParam("tickers") List<String> tickers, @RequestParam("fromDate") LocalDate fromDate) {
+		return priceDeliveryVolumeService.getPDVForTickerSince(fromDate, tickers);
 	}
 
 }

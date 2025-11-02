@@ -23,25 +23,31 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 
 	@Query("SELECT sp.ticker AS ticker, sp.close AS close "
 			+ "FROM PriceDeliveryVolumeEntity sp WHERE sp.date >= :from AND sp.ticker IN (:tickers) ORDER BY sp.date")
-	List<StockClosePrice> getClosePricesForStocks(@Param("from") LocalDate from, @Param("tickers") List<String> tickers);
-	
+	List<StockClosePrice> getClosePricesForStocks(@Param("from") LocalDate from,
+			@Param("tickers") List<String> tickers);
+
 	List<PriceDeliveryVolumeEntity> findByTickerAndDateAfterOrderByDateAsc(String ticker, LocalDate fromDate);
-	
+
 	@Query("SELECT DISTINCT p.ticker FROM PriceDeliveryVolumeEntity p")
-    List<String> findDistinctTicker();
-    
-    List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
-    
-    @Query(value = """
-    	    SELECT p.*
-    	    FROM pdvt p
-    	    JOIN (
-    	        SELECT ticker, MAX(date) AS max_date
-    	        FROM pdvt
-    	        WHERE ticker IN (:tickers)
-    	        GROUP BY ticker
-    	    ) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
-    	    """, nativeQuery = true)
-    List<PriceDeliveryVolumeEntity> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
+	List<String> findDistinctTicker();
+
+	List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
+
+	@Query(value = """
+			SELECT p.*
+			FROM pdvt p
+			JOIN (
+			    SELECT ticker, MAX(date) AS max_date
+			    FROM pdvt
+			    WHERE ticker IN (:tickers)
+			    GROUP BY ticker
+			) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
+			""", nativeQuery = true)
+	List<PriceDeliveryVolumeEntity> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
+
+	@Query("SELECT sp "
+			+ "FROM PriceDeliveryVolumeEntity sp WHERE sp.date >= :from AND sp.ticker IN (:tickers) ORDER BY sp.date")
+	List<PriceDeliveryVolumeEntity> getPDVForTickers(@Param("from") LocalDate from,
+			@Param("tickers") List<String> tickers);
 
 }
