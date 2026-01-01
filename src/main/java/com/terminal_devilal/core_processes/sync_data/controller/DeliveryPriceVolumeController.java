@@ -1,5 +1,6 @@
 package com.terminal_devilal.core_processes.sync_data.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,9 @@ public class DeliveryPriceVolumeController {
 	}
 
 	@GetMapping("/revise-data")
-	public DataSyncProcessResponse processPdvDataTillDate() {
-		return this.dataSync.processPdvDataTillDate();
+	public ResponseEntity<DataSyncProcessResponse> processPdvDataTillDate() {
+		DataSyncProcessResponse res = new DataSyncProcessResponse("Data Sync Process Started Please wait", true);
+		this.dataSync.processPdvDataTillDate();
+		return ResponseEntity.ok(res);
 	}
 }

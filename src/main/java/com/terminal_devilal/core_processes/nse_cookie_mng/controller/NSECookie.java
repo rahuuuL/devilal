@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.core_processes.nse_cookie_mng.entity.NSECookieRequest;
+import com.terminal_devilal.core_processes.nse_cookie_mng.entity.SaveCookieResponse;
 import com.terminal_devilal.core_processes.nse_cookie_mng.exception.CookieReadException;
 import com.terminal_devilal.core_processes.nse_cookie_mng.exception.CookieSaveException;
 import com.terminal_devilal.utils.nse.FetchNSEAPI;
@@ -33,10 +34,11 @@ public class NSECookie {
 	}
 
 	@PostMapping("/save")
-	public ResponseEntity<String> saveCookie(@RequestBody NSECookieRequest request) throws IOException {
+	public ResponseEntity<SaveCookieResponse> saveCookie(@RequestBody NSECookieRequest request) throws IOException {
 		try {
 			Files.writeString(FILE_NAME, request.getCookieValue());
-			return ResponseEntity.ok("Cookie saved to : " + FILE_NAME);
+			SaveCookieResponse res = new SaveCookieResponse("Cookie saved");
+			return ResponseEntity.ok(res);
 		} catch (IOException e) {
 			throw new CookieSaveException("Failed to save cookie", e);
 		}
@@ -53,19 +55,21 @@ public class NSECookie {
 	}
 
 	@GetMapping("/is-cookie-valid")
-	public ResponseEntity<Boolean> isCookieValid() throws IOException, InterruptedException {
+	public ResponseEntity<SaveCookieResponse> isCookieValid() throws IOException, InterruptedException {
+
 		try {
-			String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
 			String ticker = "HAL";
 
-			String url = String.format(
-					"https://www.nseindia.com/api/historical/securityArchives?from=%s&to=%s&symbol=%s&dataType=priceVolumeDeliverable&series=ALL",
-					today, today, ticker);
+			String url = String.format("https://www.nseindia.com/api/quote-equity?symbol=%s&section=trade_info",
+					ticker);
 
 			this.fetchNSEAPI.NSEAPICall(url);
-			return ResponseEntity.ok(true);
+			SaveCookieResponse res = new SaveCookieResponse("Valid", true);
+
+			return ResponseEntity.ok(res);
 		} catch (Exception e) {
-			return ResponseEntity.ok(false);
+			SaveCookieResponse res = new SaveCookieResponse("Invalid", false);
+			return ResponseEntity.ok(res);
 		}
 	}
 
