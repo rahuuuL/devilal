@@ -33,7 +33,6 @@ public class PriceDeliveryVolumeService {
 		repository.save(data);
 	}
 
-	@Transactional
 	public void saveAllPdvList(List<PriceDeliveryVolumeEntity> dataList) {
 		repository.saveAll(dataList);
 	}

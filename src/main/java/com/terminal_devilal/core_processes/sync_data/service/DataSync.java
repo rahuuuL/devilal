@@ -3,14 +3,15 @@ package com.terminal_devilal.core_processes.sync_data.service;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -27,211 +28,150 @@ import com.terminal_devilal.utils.nse.FetchNSEAPI;
 @Service
 public class DataSync {
 
-	// Setup date formatter to match API format like "25-05-2025"
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-	// Define number of threads to run in parallel (max API calls at a time)
-	private final int THREAD_POOL_SIZE = 50;
+	private static final int THREAD_POOL_SIZE = 30;
+	private static final int MAX_API_CONCURRENCY = 8;
+	private static final int MAX_RETRIES = 5;
 
-	private final int BATCH_LIMIT = 99;
+	private final Semaphore apiLimiter = new Semaphore(MAX_API_CONCURRENCY);
 
-	// 5 seconds wait after max API calls
-	private final int SLEEP_TIME_MS = 10000;
+	private final AtomicBoolean running = new AtomicBoolean(false);
 
 	private final DataFetchHistoryService dataFetchHistoryService;
-
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
-
 	private final TradeInfoService tradeInfoService;
-
 	private final FetchNSEAPI fetchNSEAPI;
-
 	private final KafkaProducerService kafkaProducerService;
+	private final PdvPersistenceService pdvPersistenceService;
 
 	public DataSync(DataFetchHistoryService dataFetchHistoryService,
 			PriceDeliveryVolumeService priceDeliveryVolumeService, TradeInfoService tradeInfoService,
-			FetchNSEAPI fetchNSEAPI, KafkaProducerService kafkaProducerService) {
-		super();
+			FetchNSEAPI fetchNSEAPI, KafkaProducerService kafkaProducerService,
+			PdvPersistenceService pdvPersistenceService) {
+
 		this.dataFetchHistoryService = dataFetchHistoryService;
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 		this.tradeInfoService = tradeInfoService;
 		this.fetchNSEAPI = fetchNSEAPI;
 		this.kafkaProducerService = kafkaProducerService;
+		this.pdvPersistenceService = pdvPersistenceService;
 	}
 
 	public void processPdvDataTillDate() {
-		List<DataFetchEntity> processedDates = dataFetchHistoryService.getProcessedDatesForTickers();
-		processedDates = processedDates.stream().filter(data -> data.getPdvtLastDate().isBefore(LocalDate.now()))
-				.collect(Collectors.toList());
-		int total = processedDates.size();
 
-		ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-		AtomicInteger counter = new AtomicInteger(0);
-
-		for (int i = 0; i < total; i++) {
-			DataFetchEntity data = processedDates.get(i);
-
-			// Pause every BATCH API calls
-			if (i > 0 && i % BATCH_LIMIT == 0) {
-				System.out
-						.println("Submitted " + i + " API calls. Pausing for " + SLEEP_TIME_MS / 1000 + " seconds...");
-				try {
-					Thread.sleep(SLEEP_TIME_MS);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					System.err.println("Sleep interrupted: " + e.getMessage());
-					break;
-				}
-			}
-
-			executor.submit(() -> {
-				try {
-					// Make URL
-					String toDate = getToDate(data.getPdvtLastDate().format(FORMATTER));
-					String fromDate = getFromDate(toDate, data.getPdvtLastDate().format(FORMATTER));
-
-					String pdvUrl = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, data.getTicker());
-					String tradeInfoUrl = this.fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
-
-					// Fetch Data PDV Data
-					JsonNode pdvResponse = this.fetchNSEAPI.NSEAPICall(pdvUrl);
-
-					TreeSet<PriceDeliveryVolumeEntity> pdvList = this.priceDeliveryVolumeService
-							.parseStockData(pdvResponse, data.getTicker());
-					FetchResult fetchResult = new FetchResult(toDate);
-					if (pdvList.isEmpty()) {
-						fetchResult = fetchTillDate(fromDate, toDate, data.getTicker());
-						try {
-							Thread.sleep(SLEEP_TIME_MS);
-						} catch (InterruptedException e) {
-							Thread.currentThread().interrupt();
-							System.err.println("Sleep interrupted: " + e.getMessage());
-						}
-					}
-
-					// Fetch Data Trade Info Data and Save the data
-					JsonNode tradeInfoResponse = this.fetchNSEAPI.NSEAPICall(tradeInfoUrl);
-					Optional<TradeInfo> info = this.tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(),
-							LocalDate.now());
-					info.ifPresent(tradeInfo -> this.tradeInfoService.saveTradeInfo(tradeInfo));
-
-					// Save the Data
-					if (fetchResult.hasData() && pdvList.isEmpty()) {
-						priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(fetchResult.getData()));
-
-						// update last pdvt date
-						dataFetchHistoryService.updateLastDateForPdvt(data.getTicker(),
-								LocalDate.parse(fetchResult.getToDate(), FORMATTER));
-					} else {
-						priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
-
-						// update last pdvt date
-						dataFetchHistoryService.updateLastDateForPdvt(data.getTicker(), pdvList.last().getDate());
-					}
-
-					// produce data to kafka for further processing
-					this.produceKafkaMessage(pdvResponse);
-
-				} catch (IOException | InterruptedException e) {
-					System.err.println("Error processing " + data.getTicker() + ": " + e.getMessage());
-				}
-
-				// Track and print progress
-				int current = counter.incrementAndGet();
-				double progress = (100.0 * current) / total;
-				System.out.println("Processed ticker : " + data.getTicker());
-				System.out.printf("Progress: %.2f%% (%d/%d completed)\n", progress, current, total);
-			});
+		if (!running.compareAndSet(false, true)) {
+			System.out.println("⚠️ PDV sync already running. Skipping.");
+			return;
 		}
 
-		executor.shutdown();
+		ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+		try {
+			List<DataFetchEntity> records = dataFetchHistoryService.getProcessedDatesForTickers().stream()
+					.filter(d -> d.getPdvtLastDate().isBefore(LocalDate.now())).toList();
+
+			int total = records.size();
+			AtomicInteger completed = new AtomicInteger();
+
+			System.out.println("Starting PDV sync for " + total + " tickers");
+
+			for (DataFetchEntity data : records) {
+				executor.submit(() -> processSingleTicker(data, completed, total));
+			}
+
+		} finally {
+			executor.shutdown();
+			try {
+				executor.awaitTermination(2, TimeUnit.HOURS);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			running.set(false);
+			System.out.println("✅ PDV sync finished");
+		}
+	}
+
+	private void processSingleTicker(DataFetchEntity data, AtomicInteger counter, int total) {
+
+		try {
+			String from = data.getPdvtLastDate().format(FORMATTER);
+			String to = calculateToDate(from);
+
+			JsonNode pdvResponse = callApiWithLimit(fetchNSEAPI.buildPDVUrl(from, to, data.getTicker()));
+
+			TreeSet<PriceDeliveryVolumeEntity> pdvList = priceDeliveryVolumeService.parseStockData(pdvResponse,
+					data.getTicker());
+
+			if (pdvList.isEmpty()) {
+				pdvList = retryFetch(from, to, data.getTicker());
+			}
+
+			if (!pdvList.isEmpty()) {
+				JsonNode tradeInfo = callApiWithLimit(fetchNSEAPI.buildTradeInfoUrl(data.getTicker()));
+
+				Optional<TradeInfo> tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfo, data.getTicker(),
+						LocalDate.now());
+
+				pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt);
+			}
+
+			produceKafkaMessage(pdvResponse);
+
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (Exception e) {
+			System.err.println("Error processing " + data.getTicker() + ": " + e.getMessage());
+		} finally {
+			int done = counter.incrementAndGet();
+			System.out.printf("Progress: %.2f%% (%d/%d)%n", (100.0 * done) / total, done, total);
+		}
+	}
+
+	private TreeSet<PriceDeliveryVolumeEntity> retryFetch(String from, String to, String ticker)
+			throws InterruptedException {
+
+		for (int i = 1; i <= MAX_RETRIES; i++) {
+			Thread.sleep(2000L * i);
+
+			try {
+				JsonNode response = callApiWithLimit(fetchNSEAPI.buildPDVUrl(from, to, ticker));
+
+				TreeSet<PriceDeliveryVolumeEntity> list = priceDeliveryVolumeService.parseStockData(response, ticker);
+
+				if (!list.isEmpty())
+					return list;
+
+			} catch (IOException e) {
+				System.err.println("Retry " + i + " failed for " + ticker);
+			}
+		}
+		return new TreeSet<>();
+	}
+
+	private JsonNode callApiWithLimit(String url) throws IOException, InterruptedException {
+
+		apiLimiter.acquire();
+		try {
+			return fetchNSEAPI.NSEAPICall(url);
+		} finally {
+			apiLimiter.release();
+		}
 	}
 
 	private void produceKafkaMessage(JsonNode node) {
 		JsonNode dataArray = node.path("data");
-
-		if (!dataArray.isArray()) {
-			System.out.print("Empty data" + node.toPrettyString());
+		if (!dataArray.isArray())
 			return;
-		}
 
 		for (JsonNode item : dataArray) {
-			this.kafkaProducerService.sendMessage(item.toPrettyString());
+			kafkaProducerService.sendMessage(item.toPrettyString());
 		}
 	}
 
-	private String getToDate(String fromDateStr) {
-		LocalDate fromDate = LocalDate.parse(fromDateStr, FORMATTER);
+	private String calculateToDate(String fromDate) {
+		LocalDate from = LocalDate.parse(fromDate, FORMATTER);
 		LocalDate today = LocalDate.now();
-
-		// if fromDate is more than 3 months older than today
-		if (fromDate.plusMonths(3).isBefore(today)) {
-			// return fromDate + 3 months
-			return fromDate.plusMonths(3).format(FORMATTER);
-		} else {
-			// else return today's date
-			return today.format(FORMATTER);
-		}
+		return from.plusMonths(3).isBefore(today) ? from.plusMonths(3).format(FORMATTER) : today.format(FORMATTER);
 	}
-
-	private String getFromDate(String toDate, String pdvtLastDate) {
-		LocalDate fromDate = LocalDate.parse(pdvtLastDate, FORMATTER);
-
-		if (LocalDate.parse(toDate, FORMATTER).minusDays(1).isEqual(fromDate)) {
-			return toDate;
-		}
-		return pdvtLastDate;
-	}
-
-	private FetchResult fetchTillDate(String fromDate, String toDate, String ticker) {
-		if (LocalDate.parse(toDate, FORMATTER).isAfter(LocalDate.now())) {
-			return new FetchResult(LocalDate.now().format(FORMATTER));
-		}
-		fromDate = toDate;
-		toDate = LocalDate.parse(toDate, FORMATTER).plusMonths(3).format(FORMATTER);
-		String pdvUrl = this.fetchNSEAPI.buildPDVUrl(fromDate, toDate, ticker);
-
-		// Fetch Data PDV Data
-		try {
-			JsonNode pdvResponse = this.fetchNSEAPI.NSEAPICall(pdvUrl);
-
-			TreeSet<PriceDeliveryVolumeEntity> pdvList = this.priceDeliveryVolumeService.parseStockData(pdvResponse,
-					ticker);
-			if (pdvList.isEmpty()) {
-				return fetchTillDate(fromDate, toDate, ticker);
-			} else {
-				return new FetchResult(pdvList);
-			}
-		} catch (IOException | InterruptedException e) {
-			System.err.println("Error processing " + ticker + ": " + e.getMessage());
-			e.printStackTrace();
-			return new FetchResult(LocalDate.now().format(FORMATTER));
-		}
-	}
-
-	public class FetchResult {
-		private TreeSet<PriceDeliveryVolumeEntity> data;
-		private String toDate;
-
-		public FetchResult(TreeSet<PriceDeliveryVolumeEntity> data) {
-			this.data = data;
-		}
-
-		public FetchResult(String toDate) {
-			this.toDate = toDate;
-		}
-
-		public boolean hasData() {
-			return data != null && !data.isEmpty();
-		}
-
-		public TreeSet<PriceDeliveryVolumeEntity> getData() {
-			return data;
-		}
-
-		public String getToDate() {
-			return toDate;
-		}
-	}
-
 }
