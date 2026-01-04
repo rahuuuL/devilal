@@ -64,12 +64,11 @@ public class PriceDeliveryVolumeService {
 		return repository.getClosePricesForStocks(fromDate, tickers).stream().collect(Collectors.groupingBy(
 				StockClosePrice::getTicker, Collectors.mapping(StockClosePrice::getClose, Collectors.toList())));
 	}
-	
+
 	/**
 	 * Get close prices for a specific stocks from a specific date.
 	 */
-	public Map<String, List<PriceDeliveryVolumeEntity>> getPDVForTickerSince(LocalDate fromDate,
-			List<String> tickers) {
+	public Map<String, List<PriceDeliveryVolumeEntity>> getPDVForTickerSince(LocalDate fromDate, List<String> tickers) {
 		return repository.getPDVForTickers(fromDate, tickers).stream()
 				.collect(Collectors.groupingBy(PriceDeliveryVolumeEntity::getTicker));
 	}
@@ -92,6 +91,11 @@ public class PriceDeliveryVolumeService {
 			stockList.add(stock);
 		}
 		return stockList;
+	}
+
+	public List<PriceDeliveryVolumeEntity> getClosePricesWithDateRange(LocalDate fromDate, LocalDate toDate,
+			String ticker, int window) {
+		return repository.getWithWindow(ticker, fromDate, toDate, window);
 	}
 
 }

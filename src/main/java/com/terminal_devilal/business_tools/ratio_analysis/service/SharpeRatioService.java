@@ -8,7 +8,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.terminal_devilal.business_tools.ratio_analysis.dto.RatioTImeSeries;
 import com.terminal_devilal.business_tools.ratio_analysis.dto.SharpeRatioDTO;
+import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @Service
@@ -78,7 +80,6 @@ public class SharpeRatioService {
 		return new SharpeRatioDTO(rawSharpe, annualSharpe, days, sortino);
 	}
 
-
 	// TODO : Remove on later stages once confirmed
 	public double calculateSortino(List<Double> prices, double riskFreeRate) {
 
@@ -95,6 +96,63 @@ public class SharpeRatioService {
 				.mapToDouble(r -> Math.pow(r - threshold, 2)).average().orElse(0));
 
 		return (downsideDeviation == 0) ? 0 : (mean - threshold) / downsideDeviation;
+	}
+
+	public List<RatioTImeSeries> computeRatiosForTimeFrame(List<String> tickers, LocalDate fromDate, LocalDate toDate,
+			double riskFreeRate, int window) {
+
+		List<RatioTImeSeries> result = new ArrayList<>();
+
+		final int WINDOW = Math.max(window, 20); // enforce minimum window
+
+		for (String ticker : tickers) {
+
+			// FULL ENTITY LIST (includes window records before fromDate)
+			List<PriceDeliveryVolumeEntity> data = priceDeliveryVolumeService.getClosePricesWithDateRange(fromDate,
+					toDate, ticker, WINDOW);
+
+			if (data.size() < WINDOW)
+				continue;
+
+			// Extract close prices once
+			List<Double> closes = data.stream().map(PriceDeliveryVolumeEntity::getClose).toList();
+
+			// Rolling calculation
+			for (int i = WINDOW; i < data.size(); i++) {
+
+				PriceDeliveryVolumeEntity row = data.get(i);
+
+				List<Double> windowPrices = closes.subList(i - WINDOW, i);
+
+				SharpeRatioDTO dto = calculateSharpeSortino(windowPrices, riskFreeRate);
+
+				RatioTImeSeries out = new RatioTImeSeries();
+
+				// ---- Market data ----
+				out.setTicker(row.getTicker());
+				out.setDate(row.getDate());
+				out.setOpen(row.getOpen());
+				out.setHigh(row.getHigh());
+				out.setLow(row.getLow());
+				out.setClose(row.getClose());
+				out.setLastTradeValue(row.getLastTradeValue());
+				out.setPrevoiusClosePrice(row.getPrevoiusClosePrice());
+				out.setVolume(row.getVolume());
+				out.setValue(row.getValue());
+				out.setTrades(row.getTrades());
+				out.setDeliveryTrade(row.getDeliveryTrade());
+				out.setDeliveryPercentage(row.getDeliveryPercentage());
+				out.setVwap(row.getVwap());
+
+				// ---- Ratios ----
+				out.setSharpeRatio(dto.getRawSharpe());
+				out.setSortinoRatio(dto.getRawSortino());
+
+				result.add(out);
+			}
+		}
+
+		return result;
 	}
 
 }

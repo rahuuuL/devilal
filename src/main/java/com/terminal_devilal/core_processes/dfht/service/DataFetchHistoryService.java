@@ -32,5 +32,9 @@ public class DataFetchHistoryService {
 			repository.save(updateData);
 		}
 	}
+	
+	public List<String> getAllTickers(){
+		return repository.findAllTickers();
+	}
 
 }
