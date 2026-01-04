@@ -11,10 +11,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.terminal_devilal.core_processes.sync_data.dto.NseQuoteResponse;
 
 @Service
 public class FetchNSEAPI {
@@ -22,9 +28,12 @@ public class FetchNSEAPI {
 	private final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
 
 	private final String PDV_BASE_URL = "https://www.nseindia.com/api/historicalOR/generateSecurityWiseHistoricalData?from=%s&to=%s&symbol=%s&type=priceVolumeDeliverable&series=EQ";
-	
+
 	private final String TRADE_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s&section=trade_info";
 
+	private final String TICKER_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s";
+
+	private final RestTemplate restTemplate = new RestTemplate();
 
 	public JsonNode NSEAPICall(String url) throws IOException, InterruptedException {
 
@@ -53,6 +62,23 @@ public class FetchNSEAPI {
 		return json;
 	}
 
+	public NseQuoteResponse fetchQuote(String symbol) {
+
+		HttpHeaders headers = new HttpHeaders();
+
+		headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+		headers.set(HttpHeaders.ACCEPT, "application/json");
+		headers.set(HttpHeaders.REFERER, "https://www.nseindia.com");
+
+		HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+		ResponseEntity<NseQuoteResponse> response = restTemplate.exchange(buildTickerInfoUrl(symbol), HttpMethod.GET,
+				entity, NseQuoteResponse.class, symbol);
+
+		return response.getBody();
+
+	}
+
 	/**
 	 * Builds the NSE URL by replacing placeholder.
 	 * 
@@ -65,7 +91,7 @@ public class FetchNSEAPI {
 		String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
 		return String.format(PDV_BASE_URL, fromDate, toDate, encodedSymbol);
 	}
-	
+
 	/**
 	 * Builds the NSE Trade Info URL by replacing the symbol placeholder.
 	 *
@@ -73,10 +99,14 @@ public class FetchNSEAPI {
 	 * @return a complete URL with the symbol inserted and properly encoded
 	 */
 	public String buildTradeInfoUrl(String symbol) {
-	    String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
-	    return String.format(TRADE_INFO, encodedSymbol);
+		String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
+		return String.format(TRADE_INFO, encodedSymbol);
 	}
 
+	public String buildTickerInfoUrl(String ticker) {
+		String encodedSymbol = URLEncoder.encode(ticker, StandardCharsets.UTF_8);
+		return String.format(TICKER_INFO, encodedSymbol);
+	}
 
 //	private boolean isValidPDVData(JsonNode node) {
 //		JsonNode data = node.path("data");
