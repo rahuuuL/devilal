@@ -2,6 +2,8 @@ package com.terminal_devilal.business_tools.heatmap.dto;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.Column;
+
 public class HeatMapDTO {
 
 	private String ticker;
@@ -27,6 +29,19 @@ public class HeatMapDTO {
 	private double cmDailyVolatility;
 
 	private double cmAnnualVolatility;
+
+	private String companyName;
+
+	private String isin;
+
+	private String macro;
+
+	private String sector;
+
+	private String industry;
+
+	@Column(name = "basic_industry")
+	private String basicIndustry;
 
 	public HeatMapDTO() {
 		super();
@@ -126,6 +141,54 @@ public class HeatMapDTO {
 
 	public void setCmAnnualVolatility(double cmAnnualVolatility) {
 		this.cmAnnualVolatility = cmAnnualVolatility;
+	}
+
+	public String getCompanyName() {
+		return companyName;
+	}
+
+	public void setCompanyName(String companyName) {
+		this.companyName = companyName;
+	}
+
+	public String getIsin() {
+		return isin;
+	}
+
+	public void setIsin(String isin) {
+		this.isin = isin;
+	}
+
+	public String getMacro() {
+		return macro;
+	}
+
+	public void setMacro(String macro) {
+		this.macro = macro;
+	}
+
+	public String getSector() {
+		return sector;
+	}
+
+	public void setSector(String sector) {
+		this.sector = sector;
+	}
+
+	public String getIndustry() {
+		return industry;
+	}
+
+	public void setIndustry(String industry) {
+		this.industry = industry;
+	}
+
+	public String getBasicIndustry() {
+		return basicIndustry;
+	}
+
+	public void setBasicIndustry(String basicIndustry) {
+		this.basicIndustry = basicIndustry;
 	}
 
 }
