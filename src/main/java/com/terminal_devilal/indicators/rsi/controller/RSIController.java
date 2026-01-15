@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.indicators.rsi.dto.ConsecutiveRSIAnalysis;
+import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.service.RSIService;
 
@@ -38,13 +38,10 @@ public class RSIController {
 		return rsiService.getRSIFromDate(ticker, fromDate);
 	}
 
-	@GetMapping("/trend")
-	public List<ConsecutiveRSIAnalysis> getRSITrend(@RequestParam(name = "tickers") List<String> tickers,
-			@RequestParam(name = "days", required = true) int days,
-			@RequestParam(name = "cutOff", required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate cutOff,
-			@RequestParam(name = "threshold", required = true) double rsiThreshold) {
-
-		return rsiService.trackRSITrend(tickers, days, cutOff, rsiThreshold);
+	@GetMapping("/percentile")
+	public List<RsiPercentileDTO> getRsiPercentiles(@RequestParam LocalDate fromDate, @RequestParam LocalDate toDate,
+			@RequestParam(defaultValue = "true") boolean rsi14) {
+		return rsiService.computeRsiPercentiles(fromDate, toDate, rsi14);
 	}
 
 }

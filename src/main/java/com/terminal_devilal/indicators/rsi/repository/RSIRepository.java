@@ -39,17 +39,11 @@ public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
 	List<RSIEntity> trackRSIData(@Param("tickers") List<String> tickers, @Param("cutoffDate") LocalDate cutoffDate,
 			@Param("days") int days);
 
-	@Query(value = """
-			SELECT *
-			FROM (
-			    SELECT s.*,
-			           ROW_NUMBER() OVER (PARTITION BY s.ticker ORDER BY s.date DESC) AS rn
-			    FROM rsi s
-			    WHERE s.date <= :cutoffDate
-			) t
-			WHERE t.rn <= :days
-			ORDER BY t.ticker, t.date DESC
-			""", nativeQuery = true)
-	List<RSIEntity> trackAllRSIData(@Param("cutoffDate") LocalDate cutoffDate, @Param("days") int days);
+	@Query("""
+			    SELECT r
+			    FROM RSIEntity r
+			    WHERE r.date BETWEEN :fromDate AND :toDate
+			""")
+	List<RSIEntity> findAllBetweenDates(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 }

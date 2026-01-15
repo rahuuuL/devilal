@@ -2,16 +2,19 @@ package com.terminal_devilal.indicators.rsi.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.terminal_devilal.common.service.TickerInfoService;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
-import com.terminal_devilal.indicators.rsi.dto.ConsecutiveRSIAnalysis;
+import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
 
@@ -22,11 +25,14 @@ public class RSIService {
 
 	private final RSIRepository rSIRepository;
 	private final PriceDeliveryVolumeUtility priceDeliveryVolumeUtility;
+	private final TickerInfoService companyDetails;
 
-	public RSIService(RSIRepository rSIRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility) {
+	public RSIService(RSIRepository rSIRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility,
+			TickerInfoService companyDetails) {
 		super();
 		this.rSIRepository = rSIRepository;
 		this.priceDeliveryVolumeUtility = priceDeliveryVolumeUtility;
+		this.companyDetails = companyDetails;
 	}
 
 	@Transactional
@@ -92,27 +98,55 @@ public class RSIService {
 		return 100.0 - (100.0 / (1 + rs));
 	}
 
-	public List<ConsecutiveRSIAnalysis> trackRSITrend(List<String> tickers, int days, LocalDate cutOff,
-			double rsiThreshold) {
-		List<RSIEntity> data = new ArrayList<RSIEntity>();
-		if (tickers.size() == 0) {
-			data = rSIRepository.trackAllRSIData(cutOff, days);
-		} else {
-			data = rSIRepository.trackRSIData(tickers, cutOff, days);
+	public List<RsiPercentileDTO> computeRsiPercentiles(LocalDate fromDate, LocalDate toDate, boolean use14DayRsi) {
 
+		List<RSIEntity> rows = rSIRepository.findAllBetweenDates(fromDate, toDate);
+
+		// 1️⃣ Group by ticker
+		Map<String, List<RSIEntity>> byTicker = rows.stream().collect(Collectors.groupingBy(RSIEntity::getTicker));
+
+		List<RsiPercentileDTO> result = new ArrayList<>();
+
+		for (Map.Entry<String, List<RSIEntity>> entry : byTicker.entrySet()) {
+
+			String ticker = entry.getKey();
+			List<RSIEntity> data = entry.getValue();
+
+			// 2️⃣ Find RSI value on toDate
+			Optional<RSIEntity> endDateRow = data.stream().filter(d -> d.getDate().equals(toDate)).findFirst();
+
+			if (endDateRow.isEmpty())
+				continue;
+
+			double targetRsi = use14DayRsi ? endDateRow.get().getFourtheenDaysRSI()
+					: endDateRow.get().getTweentyOneDaysRSI();
+
+			// 3️⃣ Collect RSI values
+			List<Double> rsiSeries = data.stream()
+					.map(d -> use14DayRsi ? d.getFourtheenDaysRSI() : d.getTweentyOneDaysRSI()).sorted().toList();
+
+			// 4️⃣ Percentile calculation
+			long countBelow = rsiSeries.stream().filter(v -> v < targetRsi).count();
+
+			double percentile = (double) countBelow / rsiSeries.size() * 100.0;
+
+			// 5️⃣ Build DTO (only RSI-related fields)
+			RsiPercentileDTO dto = new RsiPercentileDTO();
+			dto.setTicker(ticker);
+			dto.setRsiValue(targetRsi);
+			dto.setPercentile(percentile);
+
+			// 6️⃣ Enrich with sector + trade info
+			companyDetails.enrichTickerDetails(ticker, dto);
+
+			result.add(dto);
 		}
 
-		return data.stream().collect(Collectors.groupingBy(RSIEntity::getTicker)).entrySet().stream().map(entry -> {
-			boolean allAboveThreshold = entry.getValue().stream().mapToDouble(RSIEntity::getFourtheenDaysRSI)
-					.allMatch(rsi -> rsi > rsiThreshold);
-
-			if (!allAboveThreshold) {
-				return null;
-			}
-
-			List<Double> rsiList = entry.getValue().stream().map(RSIEntity::getFourtheenDaysRSI).toList();
-
-			return new ConsecutiveRSIAnalysis(entry.getKey(), rsiList);
-		}).filter(Objects::nonNull).toList();
+		// 7 Sort DESC by percentile
+		return result.stream()
+				.sorted(Comparator
+						.comparing(RsiPercentileDTO::getTotalMarketCap, Comparator.nullsLast(Double::compareTo))
+						.reversed().thenComparing(RsiPercentileDTO::getPercentile, Comparator.reverseOrder()))
+				.toList();
 	}
 }
