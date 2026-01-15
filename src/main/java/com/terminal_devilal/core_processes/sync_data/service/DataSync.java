@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
 import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
-import com.terminal_devilal.configurations.kakfa.KafkaProducerService;
 import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
@@ -42,19 +41,17 @@ public class DataSync {
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 	private final TradeInfoService tradeInfoService;
 	private final FetchNSEAPI fetchNSEAPI;
-	private final KafkaProducerService kafkaProducerService;
+
 	private final PdvPersistenceService pdvPersistenceService;
 
 	public DataSync(DataFetchHistoryService dataFetchHistoryService,
 			PriceDeliveryVolumeService priceDeliveryVolumeService, TradeInfoService tradeInfoService,
-			FetchNSEAPI fetchNSEAPI, KafkaProducerService kafkaProducerService,
-			PdvPersistenceService pdvPersistenceService) {
-
+			FetchNSEAPI fetchNSEAPI, PdvPersistenceService pdvPersistenceService) {
+		super();
 		this.dataFetchHistoryService = dataFetchHistoryService;
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 		this.tradeInfoService = tradeInfoService;
 		this.fetchNSEAPI = fetchNSEAPI;
-		this.kafkaProducerService = kafkaProducerService;
 		this.pdvPersistenceService = pdvPersistenceService;
 	}
 
@@ -113,10 +110,8 @@ public class DataSync {
 				Optional<TradeInfo> tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfo, data.getTicker(),
 						LocalDate.now());
 
-				pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt);
+				pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt, pdvResponse);
 			}
-
-			produceKafkaMessage(pdvResponse);
 
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -156,16 +151,6 @@ public class DataSync {
 			return fetchNSEAPI.NSEAPICall(url);
 		} finally {
 			apiLimiter.release();
-		}
-	}
-
-	private void produceKafkaMessage(JsonNode node) {
-		JsonNode dataArray = node.path("data");
-		if (!dataArray.isArray())
-			return;
-
-		for (JsonNode item : dataArray) {
-			kafkaProducerService.sendMessage(item.toPrettyString());
 		}
 	}
 
