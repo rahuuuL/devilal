@@ -1,10 +1,13 @@
 package com.terminal_devilal.indicators.pdv.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -22,10 +25,14 @@ public class PriceDeliveryVolumeService {
 
 	private final PriceDeliveryVolumeUtility utils;
 
-	public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PriceDeliveryVolumeUtility utils) {
+	private final Executor dbExecutor;
+
+	public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PriceDeliveryVolumeUtility utils,
+			Executor dbExecutor) {
 		super();
 		this.repository = repository;
 		this.utils = utils;
+		this.dbExecutor = dbExecutor;
 	}
 
 	@Transactional
@@ -94,8 +101,26 @@ public class PriceDeliveryVolumeService {
 	}
 
 	public List<PriceDeliveryVolumeEntity> getClosePricesWithDateRange(LocalDate fromDate, LocalDate toDate,
-			String ticker, int window) {
-		return repository.getWithWindow(ticker, fromDate, toDate, window);
+			List<String> tickers, int window) {
+
+		int batchSize = 5; // 🔑 important: prevents DB overload
+
+		List<List<String>> batches = partition(tickers, batchSize);
+
+		List<CompletableFuture<List<PriceDeliveryVolumeEntity>>> futures = batches.stream()
+				.map(batch -> CompletableFuture.supplyAsync(
+						() -> repository.getWithWindowMultiTicker(batch, fromDate, toDate, window), dbExecutor))
+				.toList();
+
+		return futures.stream().map(CompletableFuture::join).flatMap(List::stream).toList();
+	}
+
+	private <T> List<List<T>> partition(List<T> list, int size) {
+		List<List<T>> partitions = new ArrayList<>();
+		for (int i = 0; i < list.size(); i += size) {
+			partitions.add(list.subList(i, Math.min(i + size, list.size())));
+		}
+		return partitions;
 	}
 
 }
