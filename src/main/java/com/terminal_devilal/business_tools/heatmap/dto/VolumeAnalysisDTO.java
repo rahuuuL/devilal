@@ -31,31 +31,21 @@ public class VolumeAnalysisDTO {
 	private double cmDailyVolatility;
 
 	private double cmAnnualVolatility;
-	
+
+	private String companyName;
+
+	private String isin;
+
+	private String macro;
+
+	private String sector;
+
+	private String industry;
+
+	private String basicIndustry;
 
 	public VolumeAnalysisDTO() {
 		super();
-	}
-
-	public VolumeAnalysisDTO(String ticker, LocalDate occurrenceDate, double volumeCameIn, double averageVolume,
-			double times, double deliveryPercentage, LocalDate tradeInfoDate, double totalTradedVolume,
-			double totalTradedValue, double totalMarketCap, double ffmc, double impactCost, double cmDailyVolatility,
-			double cmAnnualVolatility) {
-		super();
-		this.ticker = ticker;
-		this.occurrenceDate = occurrenceDate;
-		this.volumeCameIn = volumeCameIn;
-		this.averageVolume = averageVolume;
-		this.times = times;
-		this.deliveryPercentage = deliveryPercentage;
-		this.tradeInfoDate = tradeInfoDate;
-		this.totalTradedVolume = totalTradedVolume;
-		this.totalTradedValue = totalTradedValue;
-		this.totalMarketCap = totalMarketCap;
-		this.ffmc = ffmc;
-		this.impactCost = impactCost;
-		this.cmDailyVolatility = cmDailyVolatility;
-		this.cmAnnualVolatility = cmAnnualVolatility;
 	}
 
 	public String getTicker() {
@@ -168,6 +158,54 @@ public class VolumeAnalysisDTO {
 
 	public void setCmAnnualVolatility(double cmAnnualVolatility) {
 		this.cmAnnualVolatility = cmAnnualVolatility;
+	}
+
+	public String getCompanyName() {
+		return companyName;
+	}
+
+	public void setCompanyName(String companyName) {
+		this.companyName = companyName;
+	}
+
+	public String getIsin() {
+		return isin;
+	}
+
+	public void setIsin(String isin) {
+		this.isin = isin;
+	}
+
+	public String getMacro() {
+		return macro;
+	}
+
+	public void setMacro(String macro) {
+		this.macro = macro;
+	}
+
+	public String getSector() {
+		return sector;
+	}
+
+	public void setSector(String sector) {
+		this.sector = sector;
+	}
+
+	public String getIndustry() {
+		return industry;
+	}
+
+	public void setIndustry(String industry) {
+		this.industry = industry;
+	}
+
+	public String getBasicIndustry() {
+		return basicIndustry;
+	}
+
+	public void setBasicIndustry(String basicIndustry) {
+		this.basicIndustry = basicIndustry;
 	}
 
 }
