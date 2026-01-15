@@ -77,6 +77,8 @@ public class PriceHeatMapService {
 				dto.setSector(industryInfo.getSector());
 				dto.setIndustry(industryInfo.getIndustry());
 				dto.setBasicIndustry(industryInfo.getBasicIndustry());
+				dto.setIsin(industryInfo.getIsin());
+				dto.setCompanyName(industryInfo.getCompanyName());
 			}
 
 			dtoList.add(dto);
