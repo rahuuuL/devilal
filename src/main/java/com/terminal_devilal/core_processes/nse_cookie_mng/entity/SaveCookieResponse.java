@@ -1,6 +1,6 @@
 package com.terminal_devilal.core_processes.nse_cookie_mng.entity;
 
-import com.terminal_devilal.base_models.BaseAPIResponse;
+import com.terminal_devilal.common.model.BaseAPIResponse;
 
 public class SaveCookieResponse extends BaseAPIResponse<String> {
 
