@@ -51,75 +51,52 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 			@Param("tickers") List<String> tickers);
 
 	@Query(value = """
-			SELECT
-			    ticker,
-			    date,
-			    high,
-			    low,
-			    open,
-			    close,
-			    ltp,
-			    prev_close,
-			    volume,
-			    value,
-			    trades,
-			    del_trade,
-			    del_percent,
-			    vwap
-			FROM (
-			    -- Previous :window rows
-			    SELECT
-			        pdvt.ticker,
-			        pdvt.date,
-			        pdvt.high,
-			        pdvt.low,
-			        pdvt.open,
-			        pdvt.close,
-			        pdvt.ltp,
-			        pdvt.prev_close,
-			        pdvt.volume,
-			        pdvt.value,
-			        pdvt.trades,
-			        pdvt.del_trade,
-			        pdvt.del_percent,
-			        pdvt.vwap
-			    FROM (
-			        SELECT
-			            pdvt.*,
-			            ROW_NUMBER() OVER (ORDER BY date DESC) AS rn
-			        FROM pdvt
-			        WHERE ticker = :ticker
-			          AND date < :fromDate
-			    ) pdvt
-			    WHERE rn <= :window
+		    SELECT
+		        ticker,
+		        date,
+		        high,
+		        low,
+		        open,
+		        close,
+		        ltp,
+		        prev_close,
+		        volume,
+		        value,
+		        trades,
+		        del_trade,
+		        del_percent,
+		        vwap
+		    FROM (
+		        -- Previous window rows per ticker
+		        SELECT
+		            pdvt.*,
+		            ROW_NUMBER() OVER (
+		                PARTITION BY ticker
+		                ORDER BY date DESC
+		            ) AS rn
+		        FROM pdvt
+		        WHERE ticker IN (:tickers)
+		          AND date < :fromDate
 
-			    UNION ALL
+		        UNION ALL
 
-			    -- Main date range
-			    SELECT
-			        ticker,
-			        date,
-			        high,
-			        low,
-			        open,
-			        close,
-			        ltp,
-			        prev_close,
-			        volume,
-			        value,
-			        trades,
-			        del_trade,
-			        del_percent,
-			        vwap
-			    FROM pdvt
-			    WHERE ticker = :ticker
-			      AND date >= :fromDate
-			      AND date <= :toDate
-			) x
-			ORDER BY date
-			""", nativeQuery = true)
-
-	List<PriceDeliveryVolumeEntity> getWithWindow(@Param("ticker") String ticker, @Param("fromDate") LocalDate fromDate,
-			@Param("toDate") LocalDate toDate, @Param("window") int window);
+		        -- Main date range
+		        SELECT
+		            pdvt.*,
+		            NULL AS rn
+		        FROM pdvt
+		        WHERE ticker IN (:tickers)
+		          AND date BETWEEN :fromDate AND :toDate
+		    ) x
+		    WHERE rn IS NULL OR rn <= :window
+		    ORDER BY ticker, date
+		    """,
+		    nativeQuery = true)
+		List<PriceDeliveryVolumeEntity> getWithWindowMultiTicker(
+		        @Param("tickers") List<String> tickers,
+		        @Param("fromDate") LocalDate fromDate,
+		        @Param("toDate") LocalDate toDate,
+		        @Param("window") int window
+		);
 
 }

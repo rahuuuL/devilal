@@ -2,6 +2,7 @@ package com.terminal_devilal.business_tools.ratio_analysis.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -101,23 +102,30 @@ public class SharpeRatioService {
 	public List<RatioTImeSeries> computeRatiosForTimeFrame(List<String> tickers, LocalDate fromDate, LocalDate toDate,
 			double riskFreeRate, int window) {
 
-		List<RatioTImeSeries> result = new ArrayList<>();
-
 		final int WINDOW = Math.max(window, 20); // enforce minimum window
 
-		for (String ticker : tickers) {
+		// ✅ SINGLE CALL (already parallel + batched internally)
+		List<PriceDeliveryVolumeEntity> allData = priceDeliveryVolumeService.getClosePricesWithDateRange(fromDate,
+				toDate, tickers, WINDOW);
 
-			// FULL ENTITY LIST (includes window records before fromDate)
-			List<PriceDeliveryVolumeEntity> data = priceDeliveryVolumeService.getClosePricesWithDateRange(fromDate,
-					toDate, ticker, WINDOW);
+		// Group data by ticker (preserves date ordering)
+		Map<String, List<PriceDeliveryVolumeEntity>> dataByTicker = allData.stream().collect(
+				Collectors.groupingBy(PriceDeliveryVolumeEntity::getTicker, LinkedHashMap::new, Collectors.toList()));
 
-			if (data.size() < WINDOW)
+		List<RatioTImeSeries> result = new ArrayList<>();
+
+		// CPU-side rolling calculation per ticker
+		for (Map.Entry<String, List<PriceDeliveryVolumeEntity>> entry : dataByTicker.entrySet()) {
+
+			List<PriceDeliveryVolumeEntity> data = entry.getValue();
+
+			if (data.size() < WINDOW) {
 				continue;
+			}
 
 			// Extract close prices once
 			List<Double> closes = data.stream().map(PriceDeliveryVolumeEntity::getClose).toList();
 
-			// Rolling calculation
 			for (int i = WINDOW; i < data.size(); i++) {
 
 				PriceDeliveryVolumeEntity row = data.get(i);
