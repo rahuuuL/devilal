@@ -1,4 +1,4 @@
-package com.terminal_devilal.base_models;
+package com.terminal_devilal.common.model;
 
 public class BaseAPIResponse<T> {
 	public String message;
