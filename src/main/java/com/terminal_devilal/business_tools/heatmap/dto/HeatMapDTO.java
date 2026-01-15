@@ -2,8 +2,6 @@ package com.terminal_devilal.business_tools.heatmap.dto;
 
 import java.time.LocalDate;
 
-import jakarta.persistence.Column;
-
 public class HeatMapDTO {
 
 	private String ticker;
@@ -40,7 +38,6 @@ public class HeatMapDTO {
 
 	private String industry;
 
-	@Column(name = "basic_industry")
 	private String basicIndustry;
 
 	public HeatMapDTO() {
