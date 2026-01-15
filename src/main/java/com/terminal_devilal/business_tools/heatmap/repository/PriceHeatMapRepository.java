@@ -15,7 +15,7 @@ import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 @Repository
 public interface PriceHeatMapRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {
 
-	@Query("SELECT s1.id.ticker AS ticker, s1.open AS open, s2.close AS close, ((s2.close - s1.open) / s1.open) * 100 AS percentChange "
+	@Query("SELECT s1.id.ticker AS ticker, s1.open AS open, s2.close AS close, ((s2.close - s1.prevoiusClosePrice) / s1.prevoiusClosePrice) * 100 AS percentChange "
 			+ "FROM PriceDeliveryVolumeEntity s1 " + "JOIN PriceDeliveryVolumeEntity s2 ON s1.id.ticker = s2.id.ticker "
 			+ "WHERE s1.id.date = :fromDate AND s2.id.date = :toDate")
 	List<PriceHeatMapProjection> getHeatMapData(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
