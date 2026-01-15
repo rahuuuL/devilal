@@ -1,6 +1,6 @@
 package com.terminal_devilal.core_processes.sync_data.model;
 
-import com.terminal_devilal.base_models.BaseAPIResponse;
+import com.terminal_devilal.common.model.BaseAPIResponse;
 
 public class DataSyncProcessResponse extends BaseAPIResponse<String> {
 
