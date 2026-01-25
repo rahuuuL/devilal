@@ -16,7 +16,7 @@ public class TickerDetails {
 
 	private String ticker;
 
-	private LocalDate date;
+	private LocalDate detailsDate;
 
 	private double totalTradedVolume;
 
@@ -80,12 +80,12 @@ public class TickerDetails {
 		this.ticker = ticker;
 	}
 
-	public LocalDate getDate() {
-		return date;
+	public LocalDate getDetailsDate() {
+		return detailsDate;
 	}
 
-	public void setDate(LocalDate date) {
-		this.date = date;
+	public void setDetailsDate(LocalDate detailsDate) {
+		this.detailsDate = detailsDate;
 	}
 
 	public double getTotalTradedVolume() {
@@ -145,8 +145,8 @@ public class TickerDetails {
 	}
 
 	public TickerDetails(String isin, String macro, String sector, String industry, String basicIndustry, String ticker,
-			LocalDate date, double totalTradedVolume, double totalTradedValue, double totalMarketCap, double ffmc,
-			double impactCost, double cmDailyVolatility, double cmAnnualVolatility) {
+			LocalDate detailsDate, double totalTradedVolume, double totalTradedValue, double totalMarketCap,
+			double ffmc, double impactCost, double cmDailyVolatility, double cmAnnualVolatility) {
 		super();
 		this.isin = isin;
 		this.macro = macro;
@@ -154,7 +154,7 @@ public class TickerDetails {
 		this.industry = industry;
 		this.basicIndustry = basicIndustry;
 		this.ticker = ticker;
-		this.date = date;
+		this.detailsDate = detailsDate;
 		this.totalTradedVolume = totalTradedVolume;
 		this.totalTradedValue = totalTradedValue;
 		this.totalMarketCap = totalMarketCap;

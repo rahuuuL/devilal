@@ -25,7 +25,7 @@ public class TickerInfoService {
 
 		// ---- Trade info ----
 		infoRepository.findFirstByTickerOrderByDateDesc(ticker).ifPresentOrElse(trade -> {
-			target.setDate(trade.getDate());
+			target.setDetailsDate(trade.getDate());
 			target.setTotalTradedVolume(trade.getTotalTradedVolume());
 			target.setTotalTradedValue(trade.getTotalTradedValue());
 			target.setTotalMarketCap(trade.getTotalMarketCap());
@@ -34,7 +34,7 @@ public class TickerInfoService {
 			target.setCmDailyVolatility(trade.getCmDailyVolatility());
 			target.setCmAnnualVolatility(trade.getCmAnnualVolatility());
 		}, () -> {
-			target.setDate(null);
+			target.setDetailsDate(null);
 			target.setTotalTradedVolume(0.0);
 			target.setTotalTradedValue(0.0);
 			target.setTotalMarketCap(0.0);
