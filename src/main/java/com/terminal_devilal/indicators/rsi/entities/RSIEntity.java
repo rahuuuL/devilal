@@ -27,10 +27,10 @@ public class RSIEntity {
 	private double closeDiff;
 
 	@Column(name = "14_days_rsi")
-	private double FourtheenDaysRSI;
+	private double fourteenDaysRsi;
 
 	@Column(name = "21_days_rsi")
-	private double TweentyOneDaysRSI;
+	private double twentyOneDaysRsi;
 
 	public RSIEntity(String ticker, LocalDate date, double closeDiff, double fourtheenDaysRSI,
 			double tweentyOneDaysRSI) {
@@ -38,8 +38,8 @@ public class RSIEntity {
 		this.ticker = ticker;
 		this.date = date;
 		this.closeDiff = closeDiff;
-		FourtheenDaysRSI = fourtheenDaysRSI;
-		TweentyOneDaysRSI = tweentyOneDaysRSI;
+		fourteenDaysRsi = fourtheenDaysRSI;
+		twentyOneDaysRsi = tweentyOneDaysRSI;
 	}
 
 	public RSIEntity() {
@@ -71,25 +71,25 @@ public class RSIEntity {
 	}
 
 	public double getFourtheenDaysRSI() {
-		return FourtheenDaysRSI;
+		return fourteenDaysRsi;
 	}
 
 	public void setFourtheenDaysRSI(double fourtheenDaysRSI) {
-		FourtheenDaysRSI = fourtheenDaysRSI;
+		fourteenDaysRsi = fourtheenDaysRSI;
 	}
 
 	public double getTweentyOneDaysRSI() {
-		return TweentyOneDaysRSI;
+		return twentyOneDaysRsi;
 	}
 
 	public void setTweentyOneDaysRSI(double tweentyOneDaysRSI) {
-		TweentyOneDaysRSI = tweentyOneDaysRSI;
+		twentyOneDaysRsi = tweentyOneDaysRSI;
 	}
 
 	@Override
 	public String toString() {
 		return "RSI [ticker=" + ticker + ", date=" + date + ", closeDiff=" + closeDiff + ", FourtheenDaysRSI="
-				+ FourtheenDaysRSI + ", TweentyOneDaysRSI=" + TweentyOneDaysRSI + "]";
+				+ fourteenDaysRsi + ", TweentyOneDaysRSI=" + twentyOneDaysRsi + "]";
 	}
 
 }

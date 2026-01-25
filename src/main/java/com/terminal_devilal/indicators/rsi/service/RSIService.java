@@ -16,6 +16,7 @@ import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
+import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
 
 import jakarta.transaction.Transactional;
@@ -100,20 +101,22 @@ public class RSIService {
 
 	public List<RsiPercentileDTO> computeRsiPercentiles(LocalDate fromDate, LocalDate toDate, boolean use14DayRsi) {
 
-		List<RSIEntity> rows = rSIRepository.findAllBetweenDates(fromDate, toDate);
+		List<RsiPercentileProjection> rows = rSIRepository.findPercentileRecordsBetweenDates(fromDate, toDate);
 
 		// 1️⃣ Group by ticker
-		Map<String, List<RSIEntity>> byTicker = rows.stream().collect(Collectors.groupingBy(RSIEntity::getTicker));
+		Map<String, List<RsiPercentileProjection>> byTicker = rows.stream()
+				.collect(Collectors.groupingBy(RsiPercentileProjection::getTicker));
 
 		List<RsiPercentileDTO> result = new ArrayList<>();
 
-		for (Map.Entry<String, List<RSIEntity>> entry : byTicker.entrySet()) {
+		for (Map.Entry<String, List<RsiPercentileProjection>> entry : byTicker.entrySet()) {
 
 			String ticker = entry.getKey();
-			List<RSIEntity> data = entry.getValue();
+			List<RsiPercentileProjection> data = entry.getValue();
 
 			// 2️⃣ Find RSI value on toDate
-			Optional<RSIEntity> endDateRow = data.stream().filter(d -> d.getDate().equals(toDate)).findFirst();
+			Optional<RsiPercentileProjection> endDateRow = data.stream().filter(d -> d.getDate().equals(toDate))
+					.findFirst();
 
 			if (endDateRow.isEmpty())
 				continue;

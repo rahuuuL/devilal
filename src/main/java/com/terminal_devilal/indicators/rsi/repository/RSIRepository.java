@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
+import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
 
 @Repository
 public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
@@ -40,10 +41,15 @@ public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
 			@Param("days") int days);
 
 	@Query("""
-			    SELECT r
+			    SELECT
+			        r.ticker AS ticker,
+			        r.date AS date,
+			        r.fourteenDaysRsi AS fourtheenDaysRSI,
+			        r.twentyOneDaysRsi AS twentyOneDaysRsi
 			    FROM RSIEntity r
 			    WHERE r.date BETWEEN :fromDate AND :toDate
 			""")
-	List<RSIEntity> findAllBetweenDates(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
+	List<RsiPercentileProjection> findPercentileRecordsBetweenDates(@Param("fromDate") LocalDate fromDate,
+			@Param("toDate") LocalDate toDate);
 
 }
