@@ -31,10 +31,11 @@ public class MannKendallTrendAnalysisController {
 	@GetMapping("/all")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
 			@RequestParam(name = "riskFreeRate", defaultValue = "0.06") double riskFreeRate,
 			@RequestParam("column") String columnName) {
 
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
+		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
 				columnName, riskFreeRate);
 		return ResponseEntity.ok(results);
 	}
@@ -42,10 +43,11 @@ public class MannKendallTrendAnalysisController {
 	@GetMapping("/forTickers")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
 			@RequestParam(name = "riskFreeRate", defaultValue = "0.06") double riskFreeRate,
 			@RequestParam("column") String columnName, @RequestParam("tickers") List<String> tickers) {
 
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
+		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
 				columnName, tickers, riskFreeRate);
 		return ResponseEntity.ok(results);
 	}

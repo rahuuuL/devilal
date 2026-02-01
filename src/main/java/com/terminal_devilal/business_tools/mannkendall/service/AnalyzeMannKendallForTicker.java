@@ -43,24 +43,25 @@ public class AnalyzeMannKendallForTicker {
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName,
-			double riskFreeRate) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName);
-		return analysisProcess(groupedClosePrices, fromDate, inputColumnName);
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate,
+			String inputColumnName, double riskFreeRate) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate,
+				inputColumnName);
+		return analysisProcess(groupedClosePrices, fromDate, toDate, inputColumnName);
 	}
 
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, String inputColumnName,
-			List<String> tickers, double riskFreeRate) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, inputColumnName,
-				tickers);
-		return analysisProcess(groupedClosePrices, fromDate, inputColumnName);
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate,
+			String inputColumnName, List<String> tickers, double riskFreeRate) {
+		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate,
+				inputColumnName, tickers);
+		return analysisProcess(groupedClosePrices, fromDate, toDate, inputColumnName);
 	}
 
 	private List<MannKendallAPIResponse> analysisProcess(Map<String, List<Double>> groupedClosePrices,
-			LocalDate fromDate, String inputColumnName) {
+			LocalDate fromDate, LocalDate toDate, String inputColumnName) {
 
 		// Call batch API once with all tickers & prices
 		List<MannKendallAPIResponse> batchResponse = pythonClient.analyzeBatch(groupedClosePrices);
