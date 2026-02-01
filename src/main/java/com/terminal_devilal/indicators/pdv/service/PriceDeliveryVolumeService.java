@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
+import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 @Service
@@ -121,6 +122,11 @@ public class PriceDeliveryVolumeService {
 			partitions.add(list.subList(i, Math.min(i + size, list.size())));
 		}
 		return partitions;
+	}
+
+	public List<ConsistentVolumeProjection> getAllBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
+		return repository.getAllBetweenTwoDates(fromDate, toDate);
+
 	}
 
 }

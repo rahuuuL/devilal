@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
+import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 
 @Repository
 public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {
@@ -51,52 +52,64 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 			@Param("tickers") List<String> tickers);
 
 	@Query(value = """
-		    SELECT
-		        ticker,
-		        date,
-		        high,
-		        low,
-		        open,
-		        close,
-		        ltp,
-		        prev_close,
-		        volume,
-		        value,
-		        trades,
-		        del_trade,
-		        del_percent,
-		        vwap
-		    FROM (
-		        -- Previous window rows per ticker
-		        SELECT
-		            pdvt.*,
-		            ROW_NUMBER() OVER (
-		                PARTITION BY ticker
-		                ORDER BY date DESC
-		            ) AS rn
-		        FROM pdvt
-		        WHERE ticker IN (:tickers)
-		          AND date < :fromDate
+			SELECT
+			    ticker,
+			    date,
+			    high,
+			    low,
+			    open,
+			    close,
+			    ltp,
+			    prev_close,
+			    volume,
+			    value,
+			    trades,
+			    del_trade,
+			    del_percent,
+			    vwap
+			FROM (
+			    -- Previous window rows per ticker
+			    SELECT
+			        pdvt.*,
+			        ROW_NUMBER() OVER (
+			            PARTITION BY ticker
+			            ORDER BY date DESC
+			        ) AS rn
+			    FROM pdvt
+			    WHERE ticker IN (:tickers)
+			      AND date < :fromDate
 
-		        UNION ALL
+			    UNION ALL
 
-		        -- Main date range
-		        SELECT
-		            pdvt.*,
-		            NULL AS rn
-		        FROM pdvt
-		        WHERE ticker IN (:tickers)
-		          AND date BETWEEN :fromDate AND :toDate
-		    ) x
-		    WHERE rn IS NULL OR rn <= :window
-		    ORDER BY ticker, date
-		    """,
-		    nativeQuery = true)
-		List<PriceDeliveryVolumeEntity> getWithWindowMultiTicker(
-		        @Param("tickers") List<String> tickers,
-		        @Param("fromDate") LocalDate fromDate,
-		        @Param("toDate") LocalDate toDate,
-		        @Param("window") int window
-		);
+			    -- Main date range
+			    SELECT
+			        pdvt.*,
+			        NULL AS rn
+			    FROM pdvt
+			    WHERE ticker IN (:tickers)
+			      AND date BETWEEN :fromDate AND :toDate
+			) x
+			WHERE rn IS NULL OR rn <= :window
+			ORDER BY ticker, date
+			""", nativeQuery = true)
+	List<PriceDeliveryVolumeEntity> getWithWindowMultiTicker(@Param("tickers") List<String> tickers,
+			@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("window") int window);
+
+	@Query(value = """
+			SELECT
+			    ticker        AS ticker,
+			    date          AS date,
+			    open          AS open,
+			    close         AS close,
+			    prev_close    AS prevClose,
+			    volume        AS volume,
+			    vwap          AS vwap
+			FROM pdvt
+			WHERE date >= :fromDate
+			  AND date <= :toDate
+			ORDER BY ticker, date ASC
+			""", nativeQuery = true)
+	List<ConsistentVolumeProjection> getAllBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
+			@Param("toDate") LocalDate toDate);
 
 }

@@ -15,20 +15,20 @@ import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
 
 @RestController
 @RequestMapping("/api/devilal/volume-analysis")
-public class ConsistentVolumeController {
+public class VolumeController {
 
 	private final ConsistentVolumeDetector consistentVolumeDetector; // Service that has detectConsistantVolumes()
 
-	public ConsistentVolumeController(ConsistentVolumeDetector consistentVolumeDetector) {
+	public VolumeController(ConsistentVolumeDetector consistentVolumeDetector) {
 		super();
 		this.consistentVolumeDetector = consistentVolumeDetector;
 	}
 
-	@GetMapping("/consistent-signals")
-	public ResponseEntity<List<ConsistentVolumeSignalResponse>> getConsistentVolumeSignals(
+	@GetMapping("/consistent-signals/")
+	public ResponseEntity<List<ConsistentVolumeSignalResponse>> getConsistentVolumeSignals2(
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-			@RequestParam(defaultValue = "10") int window, @RequestParam(defaultValue = "30") int baselineWindow,
+			@RequestParam(defaultValue = "30") int baselineWindow,
 			@RequestParam(defaultValue = "0.2") double baselineLowPercentile,
 			@RequestParam(defaultValue = "0.8") double baselineHighPercentile,
 			@RequestParam(defaultValue = "100") int rvolPercentileWindow,
@@ -36,8 +36,8 @@ public class ConsistentVolumeController {
 			@RequestParam(defaultValue = "10") int consistencyWindow,
 			@RequestParam(defaultValue = "6") int requiredScore) throws Exception {
 
-		List<ConsistentVolumeSignalResponse> signals = consistentVolumeDetector.detectConsistantVolumes(fromDate,
-				toDate, window, baselineWindow, baselineLowPercentile, baselineHighPercentile, rvolPercentileWindow,
+		List<ConsistentVolumeSignalResponse> signals = consistentVolumeDetector.detectConsistentVolumes(fromDate,
+				toDate, baselineWindow, baselineLowPercentile, baselineHighPercentile, rvolPercentileWindow,
 				rvolThresholdPercentile, consistencyWindow, requiredScore);
 
 		return ResponseEntity.ok(signals);

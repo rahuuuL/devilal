@@ -3,203 +3,219 @@ package com.terminal_devilal.indicators.volume.service;
 import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.common.service.TickerInfoService;
-import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
+import com.terminal_devilal.indicators.volume.utils.SortedWindow;
 
 @Service
 public class ConsistentVolumeDetector {
 
 	private final PriceDeliveryVolumeService priceVolume;
 
-	private final DataFetchHistoryService dfht;
-
 	private final TickerInfoService companyDetails;
 
-	public ConsistentVolumeDetector(PriceDeliveryVolumeService priceVolume, DataFetchHistoryService dfht,
-			TickerInfoService companyDetails) {
+	public ConsistentVolumeDetector(PriceDeliveryVolumeService priceVolume, TickerInfoService companyDetails) {
 		super();
 		this.priceVolume = priceVolume;
-		this.dfht = dfht;
 		this.companyDetails = companyDetails;
 	}
 
-	public List<ConsistentVolumeSignalResponse> detectConsistantVolumes(LocalDate fromDate, LocalDate toDate,
-			int window, int inputBaselineWindow, double baselineLowPercentile, double baselineHighPercentile,
+	public List<ConsistentVolumeSignalResponse> detectConsistentVolumes(LocalDate fromDate, LocalDate toDate,
+			int inputBaselineWindow, double baselineLowPercentile, double baselineHighPercentile,
 			int baseRvolPercentileWindow, double rvolThresholdPercentile, int consistencyWindow, int requiredScore) {
 
+		// -------- Validation --------
 		int baselineWindow = Math.max(30, inputBaselineWindow);
 		int rvolPercentileWindow = Math.max(100, baseRvolPercentileWindow);
 
+		// -------- Fetch data --------
+		List<ConsistentVolumeProjection> allData = priceVolume.getAllBetweenTwoDates(fromDate, toDate);
+
+		// -------- Output --------
 		Queue<ConsistentVolumeSignalResponse> signals = new ConcurrentLinkedQueue<>();
 
-		List<String> tickers = dfht.getAllTickers();
+		// -------- Thread pool --------
+		int threads = Runtime.getRuntime().availableProcessors();
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
 
-		// ✅ CHUNKED DB FETCH (THIS FIXES THE ERROR)
-		List<PriceDeliveryVolumeEntity> allData = fetchInChunks(fromDate, toDate, tickers, window);
+		List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-		Map<String, List<PriceDeliveryVolumeEntity>> dataByTicker = allData.stream().collect(
-				Collectors.groupingBy(PriceDeliveryVolumeEntity::getTicker, LinkedHashMap::new, Collectors.toList()));
+		// -------- Ticker-wise grouping --------
+		String previousTicker = "";
+		List<ConsistentVolumeProjection> processData = new ArrayList<>();
 
-		// ✅ CPU PARALLELISM (SAFE)
-		dataByTicker.entrySet().parallelStream().forEach(entry -> {
+		for (ConsistentVolumeProjection data : allData) {
 
-			String ticker = entry.getKey();
-			List<PriceDeliveryVolumeEntity> bars = entry.getValue();
-			int n = bars.size();
+			if (!previousTicker.isEmpty() && !previousTicker.equals(data.getTicker())) {
 
-			if (n < Math.max(baselineWindow, rvolPercentileWindow))
-				return;
+				// snapshot list (VERY important)
+				List<ConsistentVolumeProjection> bars = new ArrayList<>(processData);
 
-			Deque<Double> baselineVolumeWindow = new ArrayDeque<>();
-			Deque<Double> rvolWindow = new ArrayDeque<>();
-			Deque<Boolean> directionalWindow = new ArrayDeque<>();
+				futures.add(CompletableFuture.runAsync(
+						() -> processData(signals, bars, baselineWindow, baselineLowPercentile, baselineHighPercentile,
+								rvolPercentileWindow, rvolThresholdPercentile, consistencyWindow, requiredScore),
+						executor));
 
-			int consistencyScore = 0;
-
-			for (int i = 0; i < baselineWindow; i++) {
-				baselineVolumeWindow.addLast((double) bars.get(i).getVolume());
+				processData.clear();
 			}
 
-			for (int i = baselineWindow; i < n; i++) {
+			previousTicker = data.getTicker();
+			processData.add(data);
+		}
 
-				PriceDeliveryVolumeEntity curr = bars.get(i);
+		// -------- Last ticker --------
+		if (!processData.isEmpty()) {
 
-				double baselineMean = percentileFilteredMean(new ArrayList<>(baselineVolumeWindow),
-						baselineLowPercentile, baselineHighPercentile);
+			List<ConsistentVolumeProjection> bars = new ArrayList<>(processData);
 
-				if (baselineMean <= 0 || Double.isNaN(baselineMean)) {
-					slideBaseline(baselineVolumeWindow, curr.getVolume());
-					continue;
-				}
+			futures.add(CompletableFuture.runAsync(
+					() -> processData(signals, bars, baselineWindow, baselineLowPercentile, baselineHighPercentile,
+							rvolPercentileWindow, rvolThresholdPercentile, consistencyWindow, requiredScore),
+					executor));
+		}
 
-				double rvol = curr.getVolume() / baselineMean;
+		// -------- Wait for all tickers --------
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-				rvolWindow.addLast(rvol);
-				if (rvolWindow.size() > rvolPercentileWindow)
-					rvolWindow.removeFirst();
+		executor.shutdown();
 
-				boolean largeVol = false;
-				if (rvolWindow.size() == rvolPercentileWindow) {
-					double p90 = percentile(new ArrayList<>(rvolWindow), rvolThresholdPercentile);
-					largeVol = rvol >= p90;
-				}
-
-				boolean directionalLargeVol = largeVol && (curr.getClose() > curr.getVwap()
-						|| (curr.getClose() > curr.getOpen() && curr.getClose() > curr.getPrevoiusClosePrice()));
-
-				directionalWindow.addLast(directionalLargeVol);
-				if (directionalLargeVol)
-					consistencyScore++;
-
-				if (directionalWindow.size() > consistencyWindow) {
-					if (directionalWindow.removeFirst())
-						consistencyScore--;
-				}
-
-				if (consistencyScore >= requiredScore) {
-					ConsistentVolumeSignalResponse r = new ConsistentVolumeSignalResponse();
-					r.setTicker(ticker);
-					r.setDate(curr.getDate());
-					r.setVolume(curr.getVolume());
-					r.setRvol(rvol);
-					r.setConsistencyScore(consistencyScore);
-					r.setConsistencyWindow(consistencyWindow);
-					r.setRequiredScore(requiredScore);
-					r.setSignal(true);
-
-					signals.add(companyDetails.enrichTickerDetails(ticker, r));
-				}
-
-				slideBaseline(baselineVolumeWindow, curr.getVolume());
-			}
-		});
-
+		// -------- Sort results --------
 		List<ConsistentVolumeSignalResponse> result = new ArrayList<>(signals);
 
-		result.sort(Comparator.comparing(ConsistentVolumeSignalResponse::getTotalMarketCap, Comparator.reverseOrder())
-				.thenComparing(ConsistentVolumeSignalResponse::getConsistencyScore, Comparator.reverseOrder())
-				.thenComparing(ConsistentVolumeSignalResponse::getRvol, Comparator.reverseOrder()));
+		Map<String, Long> tickerCountMap = result.stream()
+				.collect(Collectors.groupingBy(ConsistentVolumeSignalResponse::getTicker, Collectors.counting()));
+
+		result.sort(Comparator
+				// 1️⃣ Market cap DESC
+				.comparing(ConsistentVolumeSignalResponse::getTotalMarketCap, Comparator.reverseOrder())
+
+				// 2️⃣ Occurrence count DESC
+				.thenComparing(r -> tickerCountMap.getOrDefault(r.getTicker(), 0L), Comparator.reverseOrder())
+
+				// 3️⃣ Date DESC
+				.thenComparing(ConsistentVolumeSignalResponse::getDate, Comparator.reverseOrder()));
 
 		return result;
 	}
 
-	private List<PriceDeliveryVolumeEntity> fetchInChunks(LocalDate fromDate, LocalDate toDate, List<String> tickers,
-			int window) {
+	public void processData(Queue<ConsistentVolumeSignalResponse> signals, List<ConsistentVolumeProjection> bars,
+			int baselineWindow, double baselineLowPercentile, double baselineHighPercentile, int rvolPercentileWindow,
+			double rvolThresholdPercentile, int consistencyWindow, int requiredScore) {
 
-		final int CHUNK_SIZE = 50; // 🔑 tune based on executor
-
-		List<PriceDeliveryVolumeEntity> allData = new ArrayList<>();
-
-		for (List<String> tickerChunk : chunk(tickers, CHUNK_SIZE)) {
-
-			// ⚠️ sequential call — prevents executor overload
-			List<PriceDeliveryVolumeEntity> chunkData = priceVolume.getClosePricesWithDateRange(fromDate, toDate,
-					tickerChunk, window);
-
-			allData.addAll(chunkData);
+		int n = bars.size();
+		if (n < Math.max(baselineWindow, rvolPercentileWindow)) {
+			return;
 		}
 
-		return allData;
-	}
+		// -------- Time-order windows --------
+		Deque<Double> baselineRaw = new ArrayDeque<>();
+		Deque<Double> rvolRaw = new ArrayDeque<>();
+		Deque<Boolean> directionalWindow = new ArrayDeque<>();
 
-	private static <T> List<List<T>> chunk(List<T> list, int chunkSize) {
-		List<List<T>> chunks = new ArrayList<>();
-		for (int i = 0; i < list.size(); i += chunkSize) {
-			chunks.add(list.subList(i, Math.min(i + chunkSize, list.size())));
+		// -------- Distribution windows --------
+		SortedWindow baselineSorted = new SortedWindow(baselineWindow);
+		SortedWindow rvolSorted = new SortedWindow(rvolPercentileWindow);
+
+		int consistencyScore = 0;
+
+		// -------- Initialize baseline --------
+		for (int i = 0; i < baselineWindow; i++) {
+			double vol = bars.get(i).getVolume();
+			baselineRaw.addLast(vol);
+			baselineSorted.add(vol);
 		}
-		return chunks;
-	}
 
-	private void slideBaseline(Deque<Double> window, double newVolume) {
-		window.removeFirst();
-		window.addLast(newVolume);
-	}
+		// -------- Main loop --------
+		for (int i = baselineWindow; i < n; i++) {
 
-	private double percentile(List<Double> values, double percentile) {
-		if (values.isEmpty())
-			return Double.NaN;
+			ConsistentVolumeProjection curr = bars.get(i);
 
-		List<Double> sorted = new ArrayList<>(values);
-		Collections.sort(sorted);
+			// ---- Baseline filtered mean ----
+			double baselineMean = baselineSorted.filteredMean(baselineLowPercentile, baselineHighPercentile);
 
-		int index = (int) Math.ceil(percentile * sorted.size()) - 1;
-		index = Math.max(0, Math.min(index, sorted.size() - 1));
+			if (baselineMean <= 0 || Double.isNaN(baselineMean)) {
+				slideBaseline(baselineRaw, baselineSorted, curr.getVolume(), baselineWindow);
+				continue;
+			}
 
-		return sorted.get(index);
-	}
+			// ---- RVOL ----
+			double rvol = curr.getVolume() / baselineMean;
 
-	private double percentileFilteredMean(List<Double> values, double lowP, double highP) {
-		if (values.isEmpty())
-			return Double.NaN;
+			rvolRaw.addLast(rvol);
+			rvolSorted.add(rvol);
 
-		double pLow = percentile(values, lowP);
-		double pHigh = percentile(values, highP);
+			if (rvolRaw.size() > rvolPercentileWindow) {
+				double old = rvolRaw.removeFirst();
+				rvolSorted.remove(old);
+			}
 
-		double sum = 0.0;
-		int count = 0;
+			boolean largeVol = false;
+			if (rvolSorted.isFull()) {
+				double pX = rvolSorted.percentile(rvolThresholdPercentile);
+				largeVol = rvol >= pX;
+			}
 
-		for (double v : values) {
-			if (v >= pLow && v <= pHigh) {
-				sum += v;
-				count++;
+			// ---- Pure volume confirmation (NO direction) ----
+			boolean volumeEvent = largeVol;
+
+			directionalWindow.addLast(volumeEvent);
+			if (volumeEvent) {
+				consistencyScore++;
+			}
+
+			boolean volumeRegimeActive = consistencyScore > 0;
+
+			if (directionalWindow.size() > consistencyWindow) {
+				if (directionalWindow.removeFirst()) {
+					consistencyScore--;
+				}
+			}
+
+			// ---- Emit signal ----
+			if (consistencyScore >= requiredScore) {
+				ConsistentVolumeSignalResponse r = new ConsistentVolumeSignalResponse();
+				r.setTicker(curr.getTicker());
+				r.setDate(curr.getDate());
+				r.setVolume(curr.getVolume());
+				r.setRvol(rvol);
+				r.setConsistencyScore(consistencyScore);
+				r.setConsistencyWindow(consistencyWindow);
+				r.setRequiredScore(requiredScore);
+				r.setSignal(true);
+
+				signals.add(companyDetails.enrichTickerDetails(curr.getTicker(), r));
+			}
+
+			// ---- Slide baseline (NO lookahead bias) ----
+			if (!volumeRegimeActive) {
+				slideBaseline(baselineRaw, baselineSorted, curr.getVolume(), baselineWindow);
 			}
 		}
-		return count == 0 ? Double.NaN : sum / count;
 	}
 
+	private void slideBaseline(Deque<Double> raw, SortedWindow sorted, double newValue, int maxSize) {
+
+		raw.addLast(newValue);
+		sorted.add(newValue);
+
+		if (raw.size() > maxSize) {
+			double old = raw.removeFirst();
+			sorted.remove(old);
+		}
+	}
 }
