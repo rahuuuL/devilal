@@ -25,26 +25,27 @@ public class PriceDeliveryVolumeRepositoryCustomImpl {
 	private EntityManager entityManager;
 
 	public List<TickerValue> getTickerValues(LocalDate from, LocalDate to, String columnName) {
+
 		CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 		CriteriaQuery<Tuple> cq = cb.createTupleQuery();
 		Root<PriceDeliveryVolumeEntity> root = cq.from(PriceDeliveryVolumeEntity.class);
 
-		cq.multiselect(root.get("ticker").alias("ticker"), root.get(columnName).alias("value"));
-		cq.where(cb.greaterThanOrEqualTo(root.<LocalDate>get("date"), from));
-		cq.where(cb.lessThanOrEqualTo(root.<LocalDate>get("date"), to));
-		cq.orderBy(cb.asc(root.get("date")));
+		cq.multiselect(root.get("ticker").alias("ticker"), root.get("date").alias("date"),
+				root.get(columnName).alias("value"));
+
+		cq.where(cb.and(cb.greaterThanOrEqualTo(root.get("date"), from), cb.lessThanOrEqualTo(root.get("date"), to)));
+
+		// IMPORTANT: order by ticker + date for rolling logic
+		cq.orderBy(cb.asc(root.get("ticker")), cb.asc(root.get("date")));
 
 		return entityManager.createQuery(cq).getResultList().stream().map(tuple -> {
 			String ticker = tuple.get("ticker", String.class);
-			Object valueObj = tuple.get("value"); // get as Object
+			LocalDate date = tuple.get("date", LocalDate.class);
 
-			Double value;
-			if (valueObj instanceof Number) {
-				value = ((Number) valueObj).doubleValue();
-			} else {
-				value = 0.0;
-			}
-			return new TickerValue(ticker, value);
+			Object valueObj = tuple.get("value");
+			double value = (valueObj instanceof Number) ? ((Number) valueObj).doubleValue() : 0.0;
+
+			return new TickerValue(ticker, date, value);
 		}).collect(Collectors.toList());
 	}
 
@@ -69,30 +70,24 @@ public class PriceDeliveryVolumeRepositoryCustomImpl {
 	}
 
 	public List<TickerValue> getTickerValues(LocalDate from, LocalDate to, String columnName, List<String> tickers) {
+
 		CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 		CriteriaQuery<Tuple> cq = cb.createTupleQuery();
 		Root<PriceDeliveryVolumeEntity> root = cq.from(PriceDeliveryVolumeEntity.class);
 
-		cq.multiselect(root.get("ticker").alias("ticker"), root.get(columnName).alias("value"));
+		cq.multiselect(root.get("ticker").alias("ticker"), root.get("date").alias("date"),
+				root.get(columnName).alias("value"));
+
 		cq.where(cb.and(cb.greaterThanOrEqualTo(root.get("date"), from), cb.lessThanOrEqualTo(root.get("date"), to),
-				root.get("ticker").in(tickers) // filter by
-		// tickers list
-		));
-		cq.orderBy(cb.asc(root.get("date")));
+				root.get("ticker").in(tickers)));
 
-		return entityManager.createQuery(cq).getResultList().stream().map(tuple -> {
-			String ticker = tuple.get("ticker", String.class);
-			Object valueObj = tuple.get("value");
+		// CRITICAL: correct ordering for single-pass rolling logic
+		cq.orderBy(cb.asc(root.get("ticker")), cb.asc(root.get("date")));
 
-			Double value;
-			if (valueObj instanceof Number) {
-				value = ((Number) valueObj).doubleValue();
-			} else {
-				value = 0.0; // or handle null/default as needed
-			}
-
-			return new TickerValue(ticker, value);
-		}).collect(Collectors.toList());
+		return entityManager.createQuery(cq).getResultList().stream()
+				.map(tuple -> new TickerValue(tuple.get("ticker", String.class), tuple.get("date", LocalDate.class),
+						tuple.get("value") instanceof Number ? ((Number) tuple.get("value")).doubleValue() : 0.0))
+				.collect(Collectors.toList());
 	}
 
 	public Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate from, LocalDate to, String inputColumnName,
