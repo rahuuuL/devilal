@@ -2,9 +2,7 @@ package com.terminal_devilal.indicators.volume.model;
 
 import java.time.LocalDate;
 
-import com.terminal_devilal.common.model.TickerDetails;
-
-public class ConsistentVolumeSignalResponse extends TickerDetails {
+public class ConsistentVolumeSignalResponse {
 
 	private String ticker;
 	private LocalDate date; // usually == toDate
@@ -82,13 +80,8 @@ public class ConsistentVolumeSignalResponse extends TickerDetails {
 		this.requiredScore = requiredScore;
 	}
 
-	public ConsistentVolumeSignalResponse(String isin, String macro, String sector, String industry,
-			String basicIndustry, String ticker, LocalDate date, double totalTradedVolume, double totalTradedValue,
-			double totalMarketCap, double ffmc, double impactCost, double cmDailyVolatility, double cmAnnualVolatility,
-			String ticker2, LocalDate date2, double rvol, int consistencyScore, int consistencyWindow, boolean signal,
-			double volume, int requiredScore) {
-		super(isin, macro, sector, industry, basicIndustry, ticker, date, totalTradedVolume, totalTradedValue,
-				totalMarketCap, ffmc, impactCost, cmDailyVolatility, cmAnnualVolatility);
+	public ConsistentVolumeSignalResponse(String ticker2, LocalDate date2, double rvol, int consistencyScore,
+			int consistencyWindow, boolean signal, double volume, int requiredScore) {
 		ticker = ticker2;
 		date = date2;
 		this.rvol = rvol;

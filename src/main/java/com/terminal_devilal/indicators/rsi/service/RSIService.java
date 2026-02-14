@@ -2,7 +2,6 @@ package com.terminal_devilal.indicators.rsi.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,7 +10,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.common.service.TickerInfoService;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
@@ -26,14 +24,11 @@ public class RSIService {
 
 	private final RSIRepository rSIRepository;
 	private final PriceDeliveryVolumeUtility priceDeliveryVolumeUtility;
-	private final TickerInfoService companyDetails;
 
-	public RSIService(RSIRepository rSIRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility,
-			TickerInfoService companyDetails) {
+	public RSIService(RSIRepository rSIRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility) {
 		super();
 		this.rSIRepository = rSIRepository;
 		this.priceDeliveryVolumeUtility = priceDeliveryVolumeUtility;
-		this.companyDetails = companyDetails;
 	}
 
 	@Transactional
@@ -140,16 +135,11 @@ public class RSIService {
 			dto.setPercentile(percentile);
 
 			// 6️⃣ Enrich with sector + trade info
-			companyDetails.enrichTickerDetails(ticker, dto);
 
 			result.add(dto);
 		}
 
 		// 7 Sort DESC by percentile
-		return result.stream()
-				.sorted(Comparator
-						.comparing(RsiPercentileDTO::getTotalMarketCap, Comparator.nullsLast(Double::compareTo))
-						.reversed().thenComparing(RsiPercentileDTO::getPercentile, Comparator.reverseOrder()))
-				.toList();
+		return result;
 	}
 }

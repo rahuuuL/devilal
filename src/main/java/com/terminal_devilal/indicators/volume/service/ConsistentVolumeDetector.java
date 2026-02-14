@@ -3,20 +3,16 @@ package com.terminal_devilal.indicators.volume.service;
 import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.common.service.TickerInfoService;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
@@ -27,12 +23,9 @@ public class ConsistentVolumeDetector {
 
 	private final PriceDeliveryVolumeService priceVolume;
 
-	private final TickerInfoService companyDetails;
-
-	public ConsistentVolumeDetector(PriceDeliveryVolumeService priceVolume, TickerInfoService companyDetails) {
+	public ConsistentVolumeDetector(PriceDeliveryVolumeService priceVolume) {
 		super();
 		this.priceVolume = priceVolume;
-		this.companyDetails = companyDetails;
 	}
 
 	public List<ConsistentVolumeSignalResponse> detectConsistentVolumes(LocalDate fromDate, LocalDate toDate,
@@ -96,19 +89,6 @@ public class ConsistentVolumeDetector {
 
 		// -------- Sort results --------
 		List<ConsistentVolumeSignalResponse> result = new ArrayList<>(signals);
-
-		Map<String, Long> tickerCountMap = result.stream()
-				.collect(Collectors.groupingBy(ConsistentVolumeSignalResponse::getTicker, Collectors.counting()));
-
-		result.sort(Comparator
-				// 1️⃣ Market cap DESC
-				.comparing(ConsistentVolumeSignalResponse::getTotalMarketCap, Comparator.reverseOrder())
-
-				// 2️⃣ Occurrence count DESC
-				.thenComparing(r -> tickerCountMap.getOrDefault(r.getTicker(), 0L), Comparator.reverseOrder())
-
-				// 3️⃣ Date DESC
-				.thenComparing(ConsistentVolumeSignalResponse::getDate, Comparator.reverseOrder()));
 
 		return result;
 	}
@@ -198,7 +178,6 @@ public class ConsistentVolumeDetector {
 				r.setRequiredScore(requiredScore);
 				r.setSignal(true);
 
-				signals.add(companyDetails.enrichTickerDetails(curr.getTicker(), r));
 			}
 
 			// ---- Slide baseline (NO lookahead bias) ----

@@ -1,22 +1,12 @@
 package com.terminal_devilal.indicators.rsi.dto;
 
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
-import com.terminal_devilal.common.model.TickerDetails;
-import com.terminal_devilal.core_processes.sync_data.entity.TickerIndustryInfo;
-
-public class RsiPercentileDTO extends TickerDetails {
+public class RsiPercentileDTO {
 
 	public RsiPercentileDTO() {
 		super();
 	}
 
-	public RsiPercentileDTO(TickerIndustryInfo sectorDetails, TradeInfo tradeInfo, String ticker, double rsiValue,
-			double percentile) {
-		super(sectorDetails.getIsin(), sectorDetails.getMacro(), sectorDetails.getSector(), sectorDetails.getIndustry(),
-				sectorDetails.getBasicIndustry(), tradeInfo.getTicker(), tradeInfo.getDate(),
-				tradeInfo.getTotalTradedVolume(), tradeInfo.getTotalTradedValue(), tradeInfo.getTotalMarketCap(),
-				tradeInfo.getFfmc(), tradeInfo.getImpactCost(), tradeInfo.getCmDailyVolatility(),
-				tradeInfo.getCmAnnualVolatility());
+	public RsiPercentileDTO(String ticker, double rsiValue, double percentile) {
 		this.ticker = ticker;
 		this.rsiValue = rsiValue;
 		this.percentile = percentile;
