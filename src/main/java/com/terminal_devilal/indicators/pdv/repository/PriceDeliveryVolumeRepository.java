@@ -99,17 +99,13 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 			SELECT
 			    ticker        AS ticker,
 			    date          AS date,
-			    open          AS open,
-			    close         AS close,
-			    prev_close    AS prevClose,
-			    volume        AS volume,
-			    vwap          AS vwap
+			    volume        AS volume
 			FROM pdvt
 			WHERE date >= :fromDate
 			  AND date <= :toDate
 			ORDER BY ticker, date ASC
 			""", nativeQuery = true)
-	List<ConsistentVolumeProjection> getAllBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
+	List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
 			@Param("toDate") LocalDate toDate);
 
 }

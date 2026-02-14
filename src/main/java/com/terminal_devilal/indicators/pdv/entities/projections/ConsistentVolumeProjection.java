@@ -8,13 +8,6 @@ public interface ConsistentVolumeProjection {
 
 	LocalDate getDate();
 
-	Double getOpen();
-
-	Double getClose();
-
-	Double getPrevClose();
-
 	Long getVolume();
 
-	Double getVwap();
 }
