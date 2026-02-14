@@ -44,7 +44,7 @@ public class ConsistentVolumeDetector {
 		int rvolPercentileWindow = Math.max(100, baseRvolPercentileWindow);
 
 		// -------- Fetch data --------
-		List<ConsistentVolumeProjection> allData = priceVolume.getAllBetweenTwoDates(fromDate, toDate);
+		List<ConsistentVolumeProjection> allData = priceVolume.getAllVolumesBetweenTwoDates(fromDate, toDate);
 
 		// -------- Output --------
 		Queue<ConsistentVolumeSignalResponse> signals = new ConcurrentLinkedQueue<>();

@@ -124,8 +124,8 @@ public class PriceDeliveryVolumeService {
 		return partitions;
 	}
 
-	public List<ConsistentVolumeProjection> getAllBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
-		return repository.getAllBetweenTwoDates(fromDate, toDate);
+	public List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
+		return repository.getAllVolumesBetweenTwoDates(fromDate, toDate);
 
 	}
 
