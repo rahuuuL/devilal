@@ -34,7 +34,7 @@ public class ConsistentVolumeDetector {
 
 		// -------- Validation --------
 		int baselineWindow = Math.max(30, inputBaselineWindow);
-		int rvolPercentileWindow = Math.max(100, baseRvolPercentileWindow);
+		int rvolPercentileWindow = Math.max(inputBaselineWindow, baseRvolPercentileWindow);
 
 		// -------- Fetch data --------
 		List<ConsistentVolumeProjection> allData = priceVolume.getAllVolumesBetweenTwoDates(fromDate, toDate);
@@ -102,30 +102,56 @@ public class ConsistentVolumeDetector {
 			return;
 		}
 
-		// -------- Time-order windows --------
+		// ---------------- Rolling baseline windows ----------------
 		Deque<Double> baselineRaw = new ArrayDeque<>();
-		Deque<Double> rvolRaw = new ArrayDeque<>();
-		Deque<Boolean> directionalWindow = new ArrayDeque<>();
-
-		// -------- Distribution windows --------
 		SortedWindow baselineSorted = new SortedWindow(baselineWindow);
+
+		// ---------------- RVOL percentile windows ----------------
+		Deque<Double> rvolRaw = new ArrayDeque<>();
 		SortedWindow rvolSorted = new SortedWindow(rvolPercentileWindow);
 
-		int consistencyScore = 0;
+		// ---------------- Regime tracking ----------------
+		boolean volumeRegimeActive = false;
+		int regimeStopPoint = 0;
 
-		// -------- Initialize baseline --------
+		int consistencyScore = 0;
+		double relativeVolumeSum = 0;
+
+		// Bars inside regime that are NOT spikes (safe to add back later)
+		List<Long> normalVolumesDuringRegime = new ArrayList<>();
+
+		// ---------------- Initialize baseline ----------------
 		for (int i = 0; i < baselineWindow; i++) {
 			double vol = bars.get(i).getVolume();
 			baselineRaw.addLast(vol);
 			baselineSorted.add(vol);
 		}
 
-		// -------- Main loop --------
+		// ---------------- Main loop ----------------
 		for (int i = baselineWindow; i < n; i++) {
 
 			ConsistentVolumeProjection curr = bars.get(i);
 
-			// ---- Baseline filtered mean ----
+			// ======================================================
+			// 1. If regime ended → slide baseline ONLY using normal bars
+			// ======================================================
+			if (volumeRegimeActive && i >= regimeStopPoint) {
+
+				// Slide baseline forward ONLY with non-spike bars
+				for (double vol : normalVolumesDuringRegime) {
+					slideBaseline(baselineRaw, baselineSorted, vol, baselineWindow);
+				}
+
+				// Reset regime state
+				volumeRegimeActive = false;
+				consistencyScore = 0;
+				relativeVolumeSum = 0;
+				normalVolumesDuringRegime.clear();
+			}
+
+			// ======================================================
+			// 2. Compute baseline mean (filtered)
+			// ======================================================
 			double baselineMean = baselineSorted.filteredMean(baselineLowPercentile, baselineHighPercentile);
 
 			if (baselineMean <= 0 || Double.isNaN(baselineMean)) {
@@ -133,54 +159,84 @@ public class ConsistentVolumeDetector {
 				continue;
 			}
 
-			// ---- RVOL ----
+			// ======================================================
+			// 3. Compute RVOL
+			// ======================================================
 			double rvol = curr.getVolume() / baselineMean;
 
-			rvolRaw.addLast(rvol);
-			rvolSorted.add(rvol);
-
-			if (rvolRaw.size() > rvolPercentileWindow) {
-				double old = rvolRaw.removeFirst();
-				rvolSorted.remove(old);
-			}
-
+			// ======================================================
+			// 4. Determine spike threshold
+			// ======================================================
 			boolean largeVol = false;
+
 			if (rvolSorted.isFull()) {
-				double pX = rvolSorted.percentile(rvolThresholdPercentile);
-				largeVol = rvol >= pX;
+				double thresold = rvolSorted.percentile(rvolThresholdPercentile);
+				largeVol = rvol >= thresold;
 			}
 
-			// ---- Pure volume confirmation (NO direction) ----
-			boolean volumeEvent = largeVol;
+			// ✅ SIMPLE FIX:
+			// Only update RVOL distribution if NOT a spike
+			if (!largeVol) {
 
-			directionalWindow.addLast(volumeEvent);
-			if (volumeEvent) {
-				consistencyScore++;
-			}
+				rvolRaw.addLast(rvol);
+				rvolSorted.add(rvol);
 
-			boolean volumeRegimeActive = consistencyScore > 0;
-
-			if (directionalWindow.size() > consistencyWindow) {
-				if (directionalWindow.removeFirst()) {
-					consistencyScore--;
+				if (rvolRaw.size() > rvolPercentileWindow) {
+					double old = rvolRaw.removeFirst();
+					rvolSorted.remove(old);
 				}
 			}
 
-			// ---- Emit signal ----
-			if (consistencyScore >= requiredScore) {
-				ConsistentVolumeSignalResponse r = new ConsistentVolumeSignalResponse();
-				r.setTicker(curr.getTicker());
-				r.setDate(curr.getDate());
-				r.setVolume(curr.getVolume());
-				r.setRvol(rvol);
-				r.setConsistencyScore(consistencyScore);
-				r.setConsistencyWindow(consistencyWindow);
-				r.setRequiredScore(requiredScore);
-				r.setSignal(true);
+			// ======================================================
+			// 5. Regime detection logic
+			// ======================================================
 
+			// ---- Start regime on first spike ----
+			if (!volumeRegimeActive && largeVol) {
+
+				volumeRegimeActive = true;
+				regimeStopPoint = Math.min(i + consistencyWindow, n);
+
+				consistencyScore = 1;
+				relativeVolumeSum = rvol;
+
+				normalVolumesDuringRegime.clear();
+				continue;
 			}
 
-			// ---- Slide baseline (NO lookahead bias) ----
+			// ---- Continue regime counting ----
+			else if (volumeRegimeActive) {
+
+				if (largeVol) {
+					consistencyScore++;
+					relativeVolumeSum += rvol;
+				} else {
+					// Non-spike bar → safe volume → store for later baseline slide
+					normalVolumesDuringRegime.add(curr.getVolume());
+				}
+			}
+
+			// ======================================================
+			// 6. Emit signal ONCE when threshold is reached
+			// ======================================================
+			if (volumeRegimeActive && largeVol && consistencyScore >= requiredScore) {
+
+				ConsistentVolumeSignalResponse signal = new ConsistentVolumeSignalResponse();
+
+				signal.setTicker(curr.getTicker());
+				signal.setDate(curr.getDate());
+
+				signal.setConsistencyScore(consistencyScore);
+				signal.setConsistencyWindow(consistencyWindow);
+
+				signal.setRelativeVolumesCombinedAverage(relativeVolumeSum / consistencyScore);
+
+				signals.add(signal);
+			}
+
+			// ======================================================
+			// 7. Slide baseline normally ONLY when regime inactive
+			// ======================================================
 			if (!volumeRegimeActive) {
 				slideBaseline(baselineRaw, baselineSorted, curr.getVolume(), baselineWindow);
 			}
