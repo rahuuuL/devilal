@@ -1,47 +1,82 @@
 package com.terminal_devilal.indicators.price.service;
 
+import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Collectors;
 
-import com.terminal_devilal.indicators.common_entities.TickerValue;
+import org.springframework.stereotype.Service;
+
+import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
+import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.indicators.price.model.RollingSlopeResult;
 
+@Service
 public class RollingSlopeCalculator {
-	public static List<RollingSlopeResult> calculate(List<TickerValue> orderedData, int windowSize) {
+
+	private final PriceDeliveryVolumeService priceVolumeService;
+
+	public RollingSlopeCalculator(PriceDeliveryVolumeService priceVolumeService) {
+		super();
+		this.priceVolumeService = priceVolumeService;
+	}
+
+	private static List<RollingSlopeResult> calculate(List<RollingPriceSlopeProjection> orderedData, int windowSize) {
 
 		if (windowSize < 2) {
 			throw new IllegalArgumentException("Window size must be >= 2");
 		}
 
-		List<RollingSlopeResult> results = new ArrayList<>();
-		Deque<Double> window = new ArrayDeque<>(windowSize);
-
+		List<CompletableFuture<List<RollingSlopeResult>>> futures = new ArrayList<>();
+		List<RollingPriceSlopeProjection> currentTickerBatch = new ArrayList<>();
 		String currentTicker = null;
 
-		for (TickerValue point : orderedData) {
+		for (RollingPriceSlopeProjection point : orderedData) {
 
 			String ticker = point.getTicker();
 
-			// Detect ticker change
-			if (currentTicker == null || !ticker.equals(currentTicker)) {
-				window.clear();
-				currentTicker = ticker;
+			// Ticker changed → fire off the completed batch asynchronously
+			if (currentTicker != null && !ticker.equals(currentTicker)) {
+				final List<RollingPriceSlopeProjection> batch = currentTickerBatch; // capture for lambda
+				futures.add(CompletableFuture.supplyAsync(() -> calculateForTicker(batch, windowSize),
+						ForkJoinPool.commonPool()));
+				currentTickerBatch = new ArrayList<>(); // fresh batch for new ticker
 			}
 
-			// Add new value
-			window.addLast(point.getValue());
+			currentTicker = ticker;
+			currentTickerBatch.add(point);
+		}
 
-			// When window is full → compute slope
+		// Don't forget the last ticker's batch
+		if (!currentTickerBatch.isEmpty()) {
+			final List<RollingPriceSlopeProjection> batch = currentTickerBatch;
+			futures.add(CompletableFuture.supplyAsync(() -> calculateForTicker(batch, windowSize),
+					ForkJoinPool.commonPool()));
+		}
+
+		// Join all futures and flatten
+		return futures.stream().map(CompletableFuture::join).flatMap(List::stream).collect(Collectors.toList());
+	}
+
+	// Extracted per-ticker logic (pure, no shared state — safe for parallel
+	// execution)
+	private static List<RollingSlopeResult> calculateForTicker(List<RollingPriceSlopeProjection> tickerData,
+			int windowSize) {
+
+		List<RollingSlopeResult> results = new ArrayList<>();
+		Deque<Double> window = new ArrayDeque<>(windowSize);
+
+		for (RollingPriceSlopeProjection point : tickerData) {
+			window.addLast(point.getPrice());
+
 			if (window.size() == windowSize) {
-
 				double slope = computeSlope(window);
-
-				results.add(new RollingSlopeResult(ticker, point.getDate(), slope));
-
-				// Slide window
+				results.add(new RollingSlopeResult(point.getTicker(), point.getDate(), slope));
 				window.removeFirst();
 			}
 		}
@@ -76,4 +111,13 @@ public class RollingSlopeCalculator {
 
 		return (n * sumXY - sumX * sumY) / denominator;
 	}
+
+	public List<RollingSlopeResult> getRollingSlope(LocalDate fromDate, LocalDate toDate, int windowSize) {
+		// Get all data
+		List<RollingPriceSlopeProjection> prices = this.priceVolumeService.getAllPricesBetweenTwoDates(fromDate,
+				toDate);
+		return calculate(prices, windowSize);
+
+	}
+
 }

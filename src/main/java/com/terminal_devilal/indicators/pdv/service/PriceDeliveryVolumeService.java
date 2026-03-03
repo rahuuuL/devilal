@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 @Service
@@ -126,7 +127,10 @@ public class PriceDeliveryVolumeService {
 
 	public List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
 		return repository.getAllVolumesBetweenTwoDates(fromDate, toDate);
+	}
 
+	public List<RollingPriceSlopeProjection> getAllPricesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
+		return repository.getAllPricesBetweenTwoDates(fromDate, toDate);
 	}
 
 }

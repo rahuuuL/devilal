@@ -12,6 +12,7 @@ import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 
 @Repository
 public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {
@@ -106,6 +107,19 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 			ORDER BY ticker, date ASC
 			""", nativeQuery = true)
 	List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
+			@Param("toDate") LocalDate toDate);
+
+	@Query(value = """
+			SELECT
+			    ticker       AS ticker,
+			    date         AS date,
+			    close        AS price
+			FROM pdvt
+			WHERE date >= :fromDate
+			  AND date <= :toDate
+			ORDER BY ticker, date ASC
+			""", nativeQuery = true)
+	List<RollingPriceSlopeProjection> getAllPricesBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
 			@Param("toDate") LocalDate toDate);
 
 }
