@@ -2,13 +2,14 @@ package com.terminal_devilal.core_processes.dfht.service;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.repository.DataFetchHistroyRepository;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class DataFetchHistoryService {
@@ -24,17 +25,22 @@ public class DataFetchHistoryService {
 		return repository.findAll();
 	}
 
-	public void updateLastDateForPdvt(String ticker, LocalDate pdvtLastProcessedDate) {
-		Optional<DataFetchEntity> dataFetchEntity = this.repository.findById(ticker);
-		if (dataFetchEntity.isPresent()) {
-			DataFetchEntity updateData = dataFetchEntity.get();
-			updateData.setPdvtLastDate(pdvtLastProcessedDate);
-			repository.save(updateData);
-		}
-	}
-	
-	public List<String> getAllTickers(){
+//	public void updateLastDateForPdvt(String ticker, LocalDate pdvtLastProcessedDate) {
+//		Optional<DataFetchEntity> dataFetchEntity = this.repository.findById(ticker);
+//		if (dataFetchEntity.isPresent()) {
+//			DataFetchEntity updateData = dataFetchEntity.get();
+//			updateData.setPdvtLastDate(pdvtLastProcessedDate);
+//			repository.save(updateData);
+//		}
+//	}
+
+	public List<String> getAllTickers() {
 		return repository.findAllTickers();
+	}
+
+	@Transactional
+	public void updateLastDateForPdvt(String ticker, LocalDate date) {
+		repository.updateLastDate(ticker, date);
 	}
 
 }
