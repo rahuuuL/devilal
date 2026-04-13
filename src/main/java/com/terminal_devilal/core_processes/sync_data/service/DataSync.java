@@ -29,7 +29,7 @@ public class DataSync {
 
 	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-	private static final int THREAD_POOL_SIZE = 30;
+	private static final int THREAD_POOL_SIZE = Runtime.getRuntime().availableProcessors();
 	private static final int MAX_API_CONCURRENCY = 8;
 	private static final int MAX_RETRIES = 5;
 
