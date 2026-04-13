@@ -1,0 +1,83 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: av37hvgAv%123
+      MYSQL_DATABASE: stonks
+    ports:
+      - "3307:3306"
+    volumes:
+      - D:/docker-data/mysql-data:/var/lib/mysql
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  java:
+    build:
+      context: D:/Apps/terminal-devilal
+      dockerfile: Docker.dev
+    container_name: springboot
+    working_dir: /app
+    volumes:
+      - D:/Apps/terminal-devilal:/app
+      - D:/Apps/terminal-devilal/wait-for-it.sh:/wait-for-it.sh
+      - gradle_cache:/home/gradle/.gradle
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stonks?createDatabaseIfNotExist=TRUE&useSSL=FALSE&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: av37hvgAv%123
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  angular:
+    build:
+      context: D:/Apps/mangilal
+      dockerfile: Docker.dev
+    container_name: angular
+    working_dir: /app
+    volumes:
+      - D:/Apps/mangilal:/app
+      - mangilal_node_modules:/app/node_modules
+    ports:
+      - "4200:4200"
+
+  python:
+    build:
+      context: D:/Apps/terminal-devilal/src/main/python
+      dockerfile: Docker.dev
+    container_name: fastapi
+    working_dir: /app
+    volumes:
+      - D:/Apps/terminal-devilal/src/main/python:/app
+      - python_packages:/usr/local/lib/python3.11/site-packages
+    ports:
+      - "8000:8000"
+
+volumes:
+  mangilal_node_modules:
+  python_packages:
+  gradle_cache:
