@@ -8,11 +8,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
 @IdClass(TickerDateId.class)
-@Table(name = "rsi")
+@Table(name = "rsi", indexes = { @Index(name = "rsi_idx_date", columnList = "date") })
 public class RSIEntity {
 
 	@Id
