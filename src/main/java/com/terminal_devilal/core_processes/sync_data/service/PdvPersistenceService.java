@@ -9,6 +9,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
 import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.configurations.kakfa.KafkaProducerService;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
@@ -22,6 +23,7 @@ public class PdvPersistenceService {
 
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 	private final DataFetchHistoryService dataFetchHistoryService;
+	@SuppressWarnings("unused")
 	private final TradeInfoService tradeInfoService;
 	private final KafkaProducerService kafkaProducerService;
 
@@ -39,8 +41,7 @@ public class PdvPersistenceService {
 	 * SINGLE transactional boundary for ALL DB writes
 	 */
 	@Transactional
-	public void persistAll(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList,
-			Optional<com.terminal_devilal.business_tools.trade_info.entities.TradeInfo> tradeInfo,
+	public void persistAll(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, Optional<TradeInfo> tradeInfo,
 			JsonNode pdvResponse) {
 
 		// 1️⃣ PDV inserts
@@ -52,7 +53,7 @@ public class PdvPersistenceService {
 		}
 
 		// 3️⃣ Trade info insert/update
-		tradeInfo.ifPresent(tradeInfoService::saveTradeInfo);
+//		tradeInfo.ifPresent(tradeInfoService::saveTradeInfo);
 
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
