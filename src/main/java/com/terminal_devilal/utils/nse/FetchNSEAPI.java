@@ -7,9 +7,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -20,12 +17,13 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.terminal_devilal.core_processes.static_cache.StaticCache;
 import com.terminal_devilal.core_processes.sync_data.dto.NseQuoteResponse;
 
 @Service
 public class FetchNSEAPI {
 
-	private final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
+	private final StaticCache cache;
 
 	private final String PDV_BASE_URL = "https://www.nseindia.com/api/historicalOR/generateSecurityWiseHistoricalData?from=%s&to=%s&symbol=%s&type=priceVolumeDeliverable&series=EQ";
 
@@ -34,6 +32,10 @@ public class FetchNSEAPI {
 	private final String TICKER_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s";
 
 	private final RestTemplate restTemplate = new RestTemplate();
+
+	public FetchNSEAPI(StaticCache cache) {
+		this.cache = cache;
+	}
 
 	public JsonNode NSEAPICall(String url) throws IOException, InterruptedException {
 
@@ -46,7 +48,7 @@ public class FetchNSEAPI {
 				.header("Accept", "application/json, text/javascript, */*; q=0.01")
 				.header("Accept-Language", "en-US,en;q=0.9").header("Referer", "https://www.nseindia.com/")
 				.header("Origin", "https://www.nseindia.com").header("X-Requested-With", "XMLHttpRequest")
-				.header("Cookie", Files.readString(FILE_NAME)).build();
+				.header("Cookie", cache.get(StaticCache.COOKIE)).build();
 
 		// Call NSE API
 		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -107,30 +109,5 @@ public class FetchNSEAPI {
 		String encodedSymbol = URLEncoder.encode(ticker, StandardCharsets.UTF_8);
 		return String.format(TICKER_INFO, encodedSymbol);
 	}
-
-//	private boolean isValidPDVData(JsonNode node) {
-//		JsonNode data = node.path("data");
-//
-//		// Ensure "data" is an object, not null/array/missing
-//		if (data.isMissingNode() || !data.isObject()) {
-//			System.err.println("Invalid format: 'data' is missing or not an object.");
-//			return false;
-//		}
-//
-//		// Check for required fields
-//		String[] requiredFields = { "CH_SYMBOL", "CH_SERIES", "mTIMESTAMP", "CH_PREVIOUS_CLS_PRICE", "CH_OPENING_PRICE",
-//				"CH_TRADE_HIGH_PRICE", "CH_TRADE_LOW_PRICE", "CH_LAST_TRADED_PRICE", "CH_CLOSING_PRICE", "VWAP",
-//				"CH_TOT_TRADED_QTY", "CH_TOT_TRADED_VAL", "CH_TOTAL_TRADES", "CH_TIMESTAMP", "COP_DELIV_QTY",
-//				"COP_DELIV_PERC" };
-//
-//		for (String field : requiredFields) {
-//			if (!data.has(field) || data.get(field).isNull()) {
-//				System.err.println("Missing or null field: " + field);
-//				return false;
-//			}
-//		}
-//
-//		return true; // Everything looks fine
-//	}
 
 }

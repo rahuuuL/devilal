@@ -1,9 +1,6 @@
 package com.terminal_devilal.core_processes.nse_cookie_mng.controller;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,41 +11,33 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.core_processes.nse_cookie_mng.entity.NSECookieRequest;
 import com.terminal_devilal.core_processes.nse_cookie_mng.entity.SaveCookieResponse;
-import com.terminal_devilal.core_processes.nse_cookie_mng.exception.CookieReadException;
-import com.terminal_devilal.core_processes.nse_cookie_mng.exception.CookieSaveException;
+import com.terminal_devilal.core_processes.static_cache.StaticCache;
 import com.terminal_devilal.utils.nse.FetchNSEAPI;
 
 @RestController
 @RequestMapping("/nse-cookie")
 public class NSECookie {
 
-	private final Path FILE_NAME = Paths.get("NSE_COOKIE.properties");
-
 	private final FetchNSEAPI fetchNSEAPI;
 
-	public NSECookie(FetchNSEAPI fetchNSEAPI) {
+	private final StaticCache cache;
+
+	public NSECookie(FetchNSEAPI fetchNSEAPI, StaticCache cache) {
 		super();
 		this.fetchNSEAPI = fetchNSEAPI;
+		this.cache = cache;
 	}
 
 	@PostMapping("/save")
-	public ResponseEntity<SaveCookieResponse> saveCookie(@RequestBody NSECookieRequest request) throws IOException {
-		try {
-			Files.writeString(FILE_NAME, request.getCookieValue());
-			SaveCookieResponse res = new SaveCookieResponse("Cookie saved");
-			return ResponseEntity.ok(res);
-		} catch (IOException e) {
-			throw new CookieSaveException("Failed to save cookie", e);
-		}
+	public ResponseEntity<SaveCookieResponse> saveCookie(@RequestBody NSECookieRequest request) {
+		this.cache.set(StaticCache.COOKIE, request.getCookieValue());
+		SaveCookieResponse res = new SaveCookieResponse("Cookie saved");
+		return ResponseEntity.ok(res);
 	}
 
 	@GetMapping("/read")
 	public ResponseEntity<String> readCookie() {
-		try {
-			return ResponseEntity.ok(Files.readString(FILE_NAME));
-		} catch (IOException e) {
-			throw new CookieReadException("Failed to read cookie file", e);
-		}
+		return ResponseEntity.ok(this.cache.get(StaticCache.COOKIE));
 
 	}
 
