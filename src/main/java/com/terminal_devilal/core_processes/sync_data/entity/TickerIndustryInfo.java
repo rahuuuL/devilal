@@ -24,13 +24,13 @@ import jakarta.persistence.ColumnResult;
 		        i.basic_industry AS basicIndustry,
 
 		        t.date AS detailsDate,
-		        t.total_traded_volume AS totalTradedVolume,
-		        t.total_traded_value AS totalTradedValue,
-		        t.total_market_cap AS totalMarketCap,
-		        t.ffmc AS ffmc,
-		        t.impact_cost AS impactCost,
-		        t.daily_volatility AS dailyVolatility,
-		        t.annual_volatility AS annualVolatility
+		        COALESCE(t.total_traded_volume, 0) AS totalTradedVolume,
+		        COALESCE(t.total_traded_value, 0) AS totalTradedValue,
+		        COALESCE(t.total_market_cap, 0) AS totalMarketCap,
+		        COALESCE(t.ffmc, 0) AS ffmc,
+		    	COALESCE(t.impact_cost, 0) AS impactCost,
+		        COALESCE(t.daily_volatility, 0) AS dailyVolatility,
+		        COALESCE(t.annual_volatility, 0) AS annualVolatility
 
 		    FROM industry_details i
 		    LEFT JOIN (

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
+import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
@@ -38,15 +39,17 @@ public class DataSync {
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 	private final FetchNSEAPI fetchNSEAPI;
 	private final PdvPersistenceService pdvPersistenceService;
+	private final TradeInfoService tradeInfoService;
 
 	public DataSync(DataFetchHistoryService dataFetchHistoryService,
 			PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI,
-			PdvPersistenceService pdvPersistenceService) {
+			PdvPersistenceService pdvPersistenceService, TradeInfoService tradeInfoService) {
 
 		this.dataFetchHistoryService = dataFetchHistoryService;
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 		this.fetchNSEAPI = fetchNSEAPI;
 		this.pdvPersistenceService = pdvPersistenceService;
+		this.tradeInfoService = tradeInfoService;
 	}
 
 	public void processPdvDataTillDate() {
@@ -96,13 +99,6 @@ public class DataSync {
 			for (DataFetchEntity data : records) {
 				apiExecutor.submit(() -> {
 					try {
-//						String from = data.getPdvtLastDate().format(FORMATTER);
-//						String to = calculateToDate(from);
-//
-//						JsonNode response = fetchNSEAPI.NSEAPICall(fetchNSEAPI.buildPDVUrl(from, to, data.getTicker()));
-//
-//						queue.put(new WorkItem(data, response));
-
 						fetchWithRetryAndQueue(data, queue);
 
 					} catch (Exception e) {
@@ -130,6 +126,14 @@ public class DataSync {
 
 		if (!pdvList.isEmpty()) {
 			Optional<TradeInfo> tradeInfoOpt = Optional.empty();
+
+			try {
+				String tradeInfoUrl = fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
+				JsonNode tradeInfoResponse = fetchNSEAPI.NSEAPICall(tradeInfoUrl);
+				tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(), LocalDate.now());
+			} catch (Exception e) {
+				System.err.println("Trade info fetch failed for " + data.getTicker() + ": " + e.getMessage());
+			}
 
 			pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt, pdvResponse);
 		}

@@ -48,6 +48,9 @@ public class PdvPersistenceService {
 			JsonNode pdvResponse) {
 
 		if (!pdvList.isEmpty()) {
+			if (tradeInfo.isPresent()) {
+				tradeInfoService.saveTradeInfo(tradeInfo.get());
+			}
 			priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
 			dataFetchHistoryService.updateLastDateForPdvt(ticker, pdvList.last().getDate());
 		}
