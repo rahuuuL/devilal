@@ -7,25 +7,21 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
 import com.terminal_devilal.indicators.vwap.entities.VWAPEntity;
 import com.terminal_devilal.indicators.vwap.repository.VWAPRepository;
+import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;
 
 @Service
-public class VWAPService {
+public class VWAPService extends ResilientBatchService<VWAPEntity> {
 
 	private final VWAPRepository vWAPRepository;
 
-	private final PriceDeliveryVolumeUtility priceDeliveryVolumeUtility;
-
-	public VWAPService(VWAPRepository vWAPRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility) {
+	public VWAPService(VWAPRepository vWAPRepository) {
 		super();
 		this.vWAPRepository = vWAPRepository;
-		this.priceDeliveryVolumeUtility = priceDeliveryVolumeUtility;
 	}
 
 	@Transactional
@@ -47,16 +43,38 @@ public class VWAPService {
 		return vWAPRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
 	}
 
-	public void processVwap(JsonNode jsonNode) {
+	public void processVwap(PriceDeliveryVolumeEntity pdv) {
+		// Guard against division by zero if VWAP is missing or zero
+		if (pdv.getVwap() == 0) {
+			System.err.printf("[VWAP] Skipping ticker=%s date=%s — VWAP is zero%n", pdv.getTicker(), pdv.getDate());
+			return;
+		}
 
-		PriceDeliveryVolumeEntity pdv = this.priceDeliveryVolumeUtility.parseStockData(jsonNode);
-
-		// Calc Vwap Proximity
 		double vwapProximity = (pdv.getClose() - pdv.getVwap()) / pdv.getVwap() * 100;
 
-		// Save Vwap
-		VWAPEntity vWAPEntity = new VWAPEntity(pdv.getTicker(), pdv.getDate(), pdv.getClose(), pdv.getVwap(), vwapProximity);
-		saveVWAP(vWAPEntity);
+		VWAPEntity vWAPEntity = new VWAPEntity(pdv.getTicker(), pdv.getDate(), pdv.getClose(), pdv.getVwap(),
+				vwapProximity);
+
+		// Hand off to the resilient buffer — actual DB write happens in flushBuffer()
+		enqueue(vWAPEntity);
+	}
+
+	// ─── ResilientBatchService implementation ─────────────────────────────────
+
+	@Override
+	protected void saveAll(List<VWAPEntity> batch) {
+		vWAPRepository.saveAll(batch);
+	}
+
+	@Override
+	protected void saveOne(VWAPEntity record) {
+		vWAPRepository.save(record);
+	}
+
+	@Override
+	protected void onPermanentFailure(VWAPEntity record, Exception e) {
+		System.err.printf("[VWAP][PERMANENT_FAILURE] ticker=%s date=%s close=%s vwap=%s error=%s%n", record.getTicker(),
+				record.getDate(), record.getClosePrice(), record.getVwap(), e.getMessage());
 	}
 
 }

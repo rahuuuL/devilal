@@ -1,6 +1,9 @@
 package com.terminal_devilal.core_processes.sync_data.service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 
@@ -44,32 +47,34 @@ public class PdvPersistenceService {
 	public void persistAll(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, Optional<TradeInfo> tradeInfo,
 			JsonNode pdvResponse) {
 
-		// 1️⃣ PDV inserts
 		if (!pdvList.isEmpty()) {
 			priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList));
-
-			// 2️⃣ Update last processed date
 			dataFetchHistoryService.updateLastDateForPdvt(ticker, pdvList.last().getDate());
 		}
-
-		// 3️⃣ Trade info insert/update
-//		tradeInfo.ifPresent(tradeInfoService::saveTradeInfo);
 
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {
-				produceKafkaMessage(pdvResponse);
+				produceKafkaMessage(ticker, pdvResponse); // pass ticker through
 			}
 		});
 	}
 
-	private void produceKafkaMessage(JsonNode node) {
+	private void produceKafkaMessage(String ticker, JsonNode node) {
 		JsonNode dataArray = node.path("data");
 		if (!dataArray.isArray())
 			return;
 
-		for (JsonNode item : dataArray) {
-			kafkaProducerService.sendMessage(item.toPrettyString());
+		// Sort by date ascending before producing — never trust API order
+		List<JsonNode> sorted = new ArrayList<>();
+		dataArray.forEach(sorted::add);
+		sorted.sort(Comparator.comparing(item -> item.path("CH_TIMESTAMP").asText())); // use your actual date field
+																						// name
+
+		for (JsonNode item : sorted) {
+			// Ticker as key — guarantees all messages for same ticker
+			// land on same partition in the order you send them
+			kafkaProducerService.sendMessage("pdv-data", ticker, item.toPrettyString());
 		}
 	}
 }

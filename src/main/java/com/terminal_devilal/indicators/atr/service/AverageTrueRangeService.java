@@ -5,26 +5,24 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.atr.entities.AverageTrueRangeEntity;
 import com.terminal_devilal.indicators.atr.repository.AverageTrueRangeRepository;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
+import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;
 
 @Service
-public class AverageTrueRangeService {
+public class AverageTrueRangeService extends ResilientBatchService<AverageTrueRangeEntity> {
 
 	private AverageTrueRangeRepository averageTrueRangeRepository;
-	private final PriceDeliveryVolumeUtility priceDeliveryVolumeUtility;
 
-	public AverageTrueRangeService(AverageTrueRangeRepository averageTrueRangeRepository,
-			PriceDeliveryVolumeUtility priceDeliveryVolumeUtility) {
+	public AverageTrueRangeService(AverageTrueRangeRepository averageTrueRangeRepository) {
 		super();
 		this.averageTrueRangeRepository = averageTrueRangeRepository;
-		this.priceDeliveryVolumeUtility = priceDeliveryVolumeUtility;
 	}
+
+	// ── Your existing methods — completely unchanged ───────────────────────────
 
 	@Transactional
 	public void saveAllATR(List<AverageTrueRangeEntity> averageTrueRangeEntities) {
@@ -40,32 +38,36 @@ public class AverageTrueRangeService {
 		return averageTrueRangeRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
 	}
 
-	/**
-	 * Calculates the True Range (TR) for a single period.
-	 *
-	 * @param high      Today's high price
-	 * @param low       Today's low price
-	 * @param prevClose Previous day's closing price
-	 * @return True Range
-	 */
 	public double calculateTrueRange(double high, double low, double prevClose) {
 		double range1 = high - low;
 		double range2 = Math.abs(high - prevClose);
 		double range3 = Math.abs(low - prevClose);
-
 		return Math.max(range1, Math.max(range2, range3));
 	}
 
-	public void processATR(JsonNode jsonNode) {
-		PriceDeliveryVolumeEntity pdv = this.priceDeliveryVolumeUtility.parseStockData(jsonNode);
+	// ── Updated processATR — cache + resilient buffer ─────────────────────────
 
-		// Calc ATR
+	public void processATR(PriceDeliveryVolumeEntity pdv) {
 		double trueRange = calculateTrueRange(pdv.getHigh(), pdv.getLow(), pdv.getPrevoiusClosePrice());
-
-		// Make ATR object and add to list
-		AverageTrueRangeEntity averageTrueRangeEntity = new AverageTrueRangeEntity(pdv.getTicker(), pdv.getDate(), trueRange);
-		saveATR(averageTrueRangeEntity);
-
+		AverageTrueRangeEntity newEntity = new AverageTrueRangeEntity(pdv.getTicker(), pdv.getDate(), trueRange);
+		enqueue(newEntity);
 	}
 
+	// ── ResilientBatchService wiring ──────────────────────────────────────────
+
+	@Override
+	protected void saveAll(List<AverageTrueRangeEntity> batch) {
+		averageTrueRangeRepository.saveAll(batch);
+	}
+
+	@Override
+	protected void saveOne(AverageTrueRangeEntity record) {
+		averageTrueRangeRepository.save(record);
+	}
+
+	@Override
+	protected void onPermanentFailure(AverageTrueRangeEntity record, Exception e) {
+		System.err.printf("[ATR][PERMANENT_FAILURE] ticker=%s date=%s trueRange=%s error=%s%n", record.getTicker(),
+				record.getDate(), record.getTrueRange(), e.getMessage());
+	}
 }

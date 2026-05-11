@@ -46,4 +46,17 @@ public class KafkaConsumerConfig {
 		return TopicBuilder.name("pdv-data").partitions(32).replicas(1).build();
 	}
 
+	@Bean
+	public ConcurrentKafkaListenerContainerFactory<String, String> batchFactory(
+			ConsumerFactory<String, String> consumerFactory) {
+
+		ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+		factory.setConsumerFactory(consumerFactory);
+
+		factory.setBatchListener(true);
+
+		return factory;
+	}
+
 }

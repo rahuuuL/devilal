@@ -1,34 +1,40 @@
 package com.terminal_devilal.indicators.rsi.service;
 
 import java.time.LocalDate;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeUtility;
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
+import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;
 
 @Service
-public class RSIService {
+public class RSIService extends ResilientBatchService<RSIEntity> {
 
 	private final RSIRepository rSIRepository;
-	private final PriceDeliveryVolumeUtility priceDeliveryVolumeUtility;
 
-	public RSIService(RSIRepository rSIRepository, PriceDeliveryVolumeUtility priceDeliveryVolumeUtility) {
+	// ─── In-memory sliding window cache ───────────────────────────────────────
+	// Key: ticker symbol
+	// Value: ordered deque of up to 21 RSIEntity entries, oldest at head, newest at
+	// tail
+	private final ConcurrentHashMap<String, ArrayDeque<RSIEntity>> rsiCache = new ConcurrentHashMap<>();
+	private static final int CACHE_MAX = 21;
+
+	public RSIService(RSIRepository rSIRepository) {
 		super();
 		this.rSIRepository = rSIRepository;
-		this.priceDeliveryVolumeUtility = priceDeliveryVolumeUtility;
 	}
 
 	@Transactional
@@ -49,25 +55,37 @@ public class RSIService {
 		return rSIRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
 	}
 
-	public void processRSI(JsonNode jsonNode) {
-		PriceDeliveryVolumeEntity pdv = this.priceDeliveryVolumeUtility.parseStockData(jsonNode);
-
-		// Calc close diff
+	public void processRSI(PriceDeliveryVolumeEntity pdv) {
+		String ticker = pdv.getTicker();
 		double closeDiff = pdv.getClose() - pdv.getPrevoiusClosePrice();
 
-		// Get RSI for 14
-		List<RSIEntity> FourtheenDayData = this.rSIRepository.findRecent14RSIs(pdv.getTicker(), pdv.getDate());
-		double FourtheenDataRSI = FourtheenDayData.size() == 14 ? calculateRSI(FourtheenDayData) : 0;
+		ArrayDeque<RSIEntity> window = rsiCache.computeIfAbsent(ticker, t -> {
+			List<RSIEntity> dbData = rSIRepository.findRecent21RSIs(ticker, pdv.getDate());
+			return new ArrayDeque<>(dbData);
+		});
 
-		// Get RSI for 21 days
-		List<RSIEntity> TwentyOneDayData = this.rSIRepository.findRecent21RSIs(pdv.getTicker(), pdv.getDate());
-		double TwentyOneDayRSI = TwentyOneDayData.size() == 21 ? calculateRSI(TwentyOneDayData) : 0;
+		RSIEntity newEntity;
 
-		// Save RSI
-		RSIEntity rSIEntity = new RSIEntity(pdv.getTicker(), pdv.getDate(), closeDiff, FourtheenDataRSI,
-				TwentyOneDayRSI);
-		saveRSI(rSIEntity);
+		// Single synchronized block — calculate AND slide atomically
+		// Only locks this ticker's window, other tickers process freely in parallel
+		synchronized (window) {
+			List<RSIEntity> snapshot = new ArrayList<>(window);
+			int size = snapshot.size();
+
+			double rsi14 = size >= 14 ? calculateRSI(snapshot.subList(size - 14, size)) : 0;
+			double rsi21 = size == CACHE_MAX ? calculateRSI(snapshot) : 0;
+
+			newEntity = new RSIEntity(ticker, pdv.getDate(), closeDiff, rsi14, rsi21);
+
+			if (window.size() >= CACHE_MAX)
+				window.pollFirst();
+			window.addLast(newEntity);
+		}
+		// enqueue is outside the lock — no need to hold it while adding to the buffer
+		enqueue(newEntity);
 	}
+
+	// ─── RSI calculation ─────────────────────────────────────────────────────
 
 	private double calculateRSI(List<RSIEntity> rsiData) {
 		double gainSum = 0.0;
@@ -85,13 +103,30 @@ public class RSIService {
 		double averageGain = gainSum / rsiData.size();
 		double averageLoss = lossSum / rsiData.size();
 
-		// Avoid division by zero
-		if (averageLoss == 0) {
-			return 100.0; // RSI max
-		}
+		if (averageLoss == 0)
+			return 100.0;
 
 		double rs = averageGain / averageLoss;
 		return 100.0 - (100.0 / (1 + rs));
+	}
+
+	// ─── ResilientBatchService implementation ─────────────────────────────────
+
+	@Override
+	protected void saveAll(List<RSIEntity> batch) {
+		rSIRepository.saveAll(batch);
+	}
+
+	@Override
+	protected void saveOne(RSIEntity record) {
+		rSIRepository.save(record);
+	}
+
+	// Optional: override to plug in metrics/alerting for permanent failures
+	@Override
+	protected void onPermanentFailure(RSIEntity record, Exception e) {
+		System.err.printf("[RSI][PERMANENT_FAILURE] ticker=%s date=%s closeDiff=%s error=%s%n", record.getTicker(),
+				record.getDate(), record.getCloseDiff(), e.getMessage());
 	}
 
 	public List<RsiPercentileDTO> computeRsiPercentiles(LocalDate fromDate, LocalDate toDate, boolean use14DayRsi) {
