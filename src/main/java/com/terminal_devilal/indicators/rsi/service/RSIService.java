@@ -15,6 +15,7 @@ import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
+import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
@@ -51,8 +52,8 @@ public class RSIService extends ResilientBatchService<RSIEntity> {
 		return rSIRepository.findByDate(date);
 	}
 
-	public List<RSIEntity> getRSIFromDate(String ticker, LocalDate fromDate) {
-		return rSIRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
+	public List<RsiProjection> getRSIWithinDatesForTickers(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
+		return rSIRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
 	}
 
 	public void processRSI(PriceDeliveryVolumeEntity pdv) {

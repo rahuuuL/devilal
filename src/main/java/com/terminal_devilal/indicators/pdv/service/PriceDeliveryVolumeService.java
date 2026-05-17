@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
@@ -46,8 +47,8 @@ public class PriceDeliveryVolumeService {
 		repository.saveAll(dataList);
 	}
 
-	public List<PriceDeliveryVolumeEntity> getAllPdvWithinDate(String Ticker, LocalDate FromDate, LocalDate ToDate) {
-		return repository.findByTickerAndDateBetween(Ticker, ToDate, ToDate);
+	public List<PriceOhlcvProjection> getAllPdvWithinDate(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
+		return repository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
 	}
 
 	public List<PriceDeliveryVolumeEntity> getLatestRecordForTickers(List<String> tickers) {

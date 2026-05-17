@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
+import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.service.RSIService;
 
 @RestController
@@ -32,10 +33,12 @@ public class RSIController {
 	}
 
 	// RSI for a stock in a price range
-	@GetMapping("/from")
-	public List<RSIEntity> getRSIFromDate(@RequestParam("ticker") String ticker,
-			@RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
-		return rsiService.getRSIFromDate(ticker, fromDate);
+	@GetMapping("/tickers/within-dates")
+	public List<RsiProjection> getRSIWithinDatesForTickers(
+			@RequestParam(value = "fromDate", required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam(value = "toDate", required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+			@RequestParam("tickers") List<String> tickers) {
+		return rsiService.getRSIWithinDatesForTickers(tickers, fromDate, toDate);
 	}
 
 	@GetMapping("/percentile")

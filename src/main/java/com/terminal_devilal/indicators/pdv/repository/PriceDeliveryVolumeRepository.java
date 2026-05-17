@@ -12,12 +12,14 @@ import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 
 @Repository
 public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {
 
-	List<PriceDeliveryVolumeEntity> findByTickerAndDateBetween(String ticker, LocalDate startDate, LocalDate endDate);
+	List<PriceOhlcvProjection> findByTickerInAndDateBetween(List<String> tickers, LocalDate startDate,
+			LocalDate endDate);
 
 	@Query("SELECT sp.ticker AS ticker, sp.close AS close "
 			+ "FROM PriceDeliveryVolumeEntity sp WHERE sp.date >= :from ORDER BY sp.date")

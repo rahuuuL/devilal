@@ -2,13 +2,12 @@ package com.terminal_devilal.indicators.vwap.service;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.vwap.entities.VWAPEntity;
+import com.terminal_devilal.indicators.vwap.entities.projections.VwapProjection;
 import com.terminal_devilal.indicators.vwap.repository.VWAPRepository;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
@@ -34,13 +33,8 @@ public class VWAPService extends ResilientBatchService<VWAPEntity> {
 		this.vWAPRepository.save(vWAPEntity);
 	}
 
-	public Map<String, List<VWAPEntity>> getVwapDataFromDate(LocalDate fromDate) {
-		List<VWAPEntity> data = vWAPRepository.findByDateGreaterThanEqualOrderByDateAsc(fromDate);
-		return data.stream().collect(Collectors.groupingBy(VWAPEntity::getTicker));
-	}
-
-	public List<VWAPEntity> getVWAPForTickerFromDate(String ticker, LocalDate fromDate) {
-		return vWAPRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
+	public List<VwapProjection> getVwapDataWithinDates(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
+		return vWAPRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
 	}
 
 	public void processVwap(PriceDeliveryVolumeEntity pdv) {

@@ -8,12 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.vwap.entities.VWAPEntity;
+import com.terminal_devilal.indicators.vwap.entities.projections.VwapProjection;
 
 @Repository
 public interface VWAPRepository extends JpaRepository<VWAPEntity, TickerDateId> {
 
-	List<VWAPEntity> findByDateGreaterThanEqualOrderByDateAsc(LocalDate date);
-
-	List<VWAPEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
+	List<VwapProjection> findByTickerInAndDateBetween(List<String> tickers, LocalDate startDate, LocalDate endDate);
 
 }

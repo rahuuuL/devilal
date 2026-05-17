@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
+import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 
 @Repository
 public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
@@ -23,7 +24,7 @@ public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
 
 	List<RSIEntity> findByDate(LocalDate date);
 
-	List<RSIEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate fromDate);
+	List<RsiProjection> findByTickerInAndDateBetween(List<String> tickers, LocalDate startDate, LocalDate endDate);
 
 	@Query(value = """
 			SELECT *

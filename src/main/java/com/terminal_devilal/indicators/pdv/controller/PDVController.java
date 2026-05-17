@@ -4,12 +4,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @RestController
@@ -23,9 +25,12 @@ public class PDVController {
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 	}
 
-	@GetMapping("/getprices")
-	public List<PriceDeliveryVolumeEntity> getHeatMap(@RequestParam("tickers") List<String> tickers) {
-		return priceDeliveryVolumeService.getLatestRecordForTickers(tickers);
+	@GetMapping("/within-dates")
+	public List<PriceOhlcvProjection> getPDV(
+			@RequestParam(value = "fromDate", required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam(value = "toDate", required = true) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+			@RequestParam("tickers") List<String> tickers) {
+		return priceDeliveryVolumeService.getAllPdvWithinDate(tickers, fromDate, toDate);
 	}
 
 	@GetMapping("/price-volume-data")
