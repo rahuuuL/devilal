@@ -28,27 +28,25 @@ public class MannKendallTrendAnalysisController {
 	/**
 	 * Endpoint: GET /api/devilal/mannKendallTrendAnalysis?fromDate=2023-01-01
 	 */
-	@GetMapping("/all")
+	@GetMapping("/market")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-			@RequestParam(name = "riskFreeRate", defaultValue = "0.06") double riskFreeRate,
 			@RequestParam("column") String columnName) {
 
 		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
-				columnName, riskFreeRate);
+				columnName);
 		return ResponseEntity.ok(results);
 	}
 
-	@GetMapping("/forTickers")
+	@GetMapping("/tickers")
 	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-			@RequestParam(name = "riskFreeRate", defaultValue = "0.06") double riskFreeRate,
 			@RequestParam("column") String columnName, @RequestParam("tickers") List<String> tickers) {
 
 		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
-				columnName, tickers, riskFreeRate);
+				columnName, tickers);
 		return ResponseEntity.ok(results);
 	}
 
