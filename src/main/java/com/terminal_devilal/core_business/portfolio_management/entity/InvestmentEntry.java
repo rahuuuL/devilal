@@ -2,67 +2,79 @@ package com.terminal_devilal.core_business.portfolio_management.entity;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "investment_entry")
 public class InvestmentEntry {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	/**
+	 * Composite PK: (ticker, portfolio_name). MapsId("portfolioName") wires the FK
+	 * column into the embedded id so JPA doesn't need a separate FK column
+	 * alongside the composite key.
+	 */
+	@EmbeddedId
+	private InvestmentEntryId id;
 
-	private String ticker;
-
+	/** Buy price per unit at the time of entry. */
+	@Column(name = "price", nullable = false)
 	private double price;
 
+	/** Number of units held. */
+	@Column(name = "quantity", nullable = false)
 	private int quantity;
 
+	/**
+	 * Date the ticker was added to the portfolio. Tells you when the position was
+	 * opened.
+	 */
+	@Column(name = "added_date", nullable = false)
 	private LocalDate addedDate;
 
-	private double riskFreeRate;
-
-	@ManyToOne
-	@JoinColumn(name = "portfolio", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@MapsId("portfolioName")
+	@JoinColumn(name = "portfolio_name", nullable = false)
 	private Portfolio portfolio;
 
-	// Constructors, Getters, Setters
-	public InvestmentEntry(Long id, String ticker, double price, int quantity, LocalDate addedDate, double riskFreeRate,
-			Portfolio portfolio) {
-		super();
-		this.id = id;
-		this.ticker = ticker;
-		this.price = price;
-		this.quantity = quantity;
-		this.addedDate = addedDate;
-		this.riskFreeRate = riskFreeRate;
-		this.portfolio = portfolio;
-	}
+	// ── Constructors ────────────────────────────────────────────────────────
 
 	public InvestmentEntry() {
 		super();
 	}
 
-	public Long getId() {
+	public InvestmentEntry(String ticker, Portfolio portfolio, double price, int quantity, LocalDate addedDate) {
+		this.id = new InvestmentEntryId(ticker, portfolio.getName());
+		this.portfolio = portfolio;
+		this.price = price;
+		this.quantity = quantity;
+		this.addedDate = addedDate;
+	}
+
+	// ── Convenience accessors (delegates to embedded id) ───────────────────
+
+	public String getTicker() {
+		return id != null ? id.getTicker() : null;
+	}
+
+	public String getPortfolioName() {
+		return id != null ? id.getPortfolioName() : null;
+	}
+
+	// ── Getters & Setters ───────────────────────────────────────────────────
+
+	public InvestmentEntryId getId() {
 		return id;
 	}
 
-	public void setId(Long id) {
+	public void setId(InvestmentEntryId id) {
 		this.id = id;
-	}
-
-	public String getTicker() {
-		return ticker;
-	}
-
-	public void setTicker(String ticker) {
-		this.ticker = ticker;
 	}
 
 	public double getPrice() {
@@ -89,14 +101,6 @@ public class InvestmentEntry {
 		this.addedDate = addedDate;
 	}
 
-	public double getRiskFreeRate() {
-		return riskFreeRate;
-	}
-
-	public void setRiskFreeRate(double riskFreeRate) {
-		this.riskFreeRate = riskFreeRate;
-	}
-
 	public Portfolio getPortfolio() {
 		return portfolio;
 	}
@@ -104,5 +108,4 @@ public class InvestmentEntry {
 	public void setPortfolio(Portfolio portfolio) {
 		this.portfolio = portfolio;
 	}
-
 }

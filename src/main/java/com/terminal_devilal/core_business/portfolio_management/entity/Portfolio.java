@@ -1,12 +1,12 @@
 package com.terminal_devilal.core_business.portfolio_management.entity;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -15,37 +15,48 @@ import jakarta.persistence.Table;
 @Table(name = "portfolio")
 public class Portfolio {
 
+	/**
+	 * Portfolio name is the natural business key and primary key. e.g. "Primary",
+	 * "Retirement", "Trading"
+	 */
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	@Column(name = "name", nullable = false, unique = true)
+	private String name;
 
-	private String name; // "Primary", "Secondary", etc.
+	/**
+	 * Soft-delete flag. When false the portfolio is considered deleted. Hard
+	 * deletes are never done on portfolios — only on investment entries.
+	 */
+	@Column(name = "active", nullable = false)
+	private boolean active = true;
 
-	private String description;
+	/**
+	 * Updated on every action: create, deactivate, add entry, remove entry, update
+	 * entry. Lets consumers know the timestamp of the last meaningful change.
+	 */
+	@Column(name = "last_updated_date", nullable = false)
+	private LocalDate lastUpdatedDate;
 
-	@OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL)
+	/**
+	 * orphanRemoval = true ensures that when an InvestmentEntry is removed from
+	 * this list it is also deleted from the database automatically.
+	 */
+	@OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<InvestmentEntry> investments = new ArrayList<>();
 
-	// Constructors, Getters, Setters
-	public Portfolio(Long id, String name, String description, List<InvestmentEntry> investments) {
-		super();
-		this.id = id;
-		this.name = name;
-		this.description = description;
-		this.investments = investments;
-	}
+	// ── Constructors ────────────────────────────────────────────────────────
 
 	public Portfolio() {
 		super();
 	}
 
-	public Long getId() {
-		return id;
+	public Portfolio(String name) {
+		this.name = name;
+		this.active = true;
+		this.lastUpdatedDate = LocalDate.now();
 	}
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+	// ── Getters & Setters ───────────────────────────────────────────────────
 
 	public String getName() {
 		return name;
@@ -55,12 +66,20 @@ public class Portfolio {
 		this.name = name;
 	}
 
-	public String getDescription() {
-		return description;
+	public boolean isActive() {
+		return active;
 	}
 
-	public void setDescription(String description) {
-		this.description = description;
+	public void setActive(boolean active) {
+		this.active = active;
+	}
+
+	public LocalDate getLastUpdatedDate() {
+		return lastUpdatedDate;
+	}
+
+	public void setLastUpdatedDate(LocalDate lastUpdatedDate) {
+		this.lastUpdatedDate = lastUpdatedDate;
 	}
 
 	public List<InvestmentEntry> getInvestments() {
@@ -70,5 +89,4 @@ public class Portfolio {
 	public void setInvestments(List<InvestmentEntry> investments) {
 		this.investments = investments;
 	}
-
 }

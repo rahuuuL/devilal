@@ -26,7 +26,6 @@ public class PdvPersistenceService {
 
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 	private final DataFetchHistoryService dataFetchHistoryService;
-	@SuppressWarnings("unused")
 	private final TradeInfoService tradeInfoService;
 	private final KafkaProducerService kafkaProducerService;
 
