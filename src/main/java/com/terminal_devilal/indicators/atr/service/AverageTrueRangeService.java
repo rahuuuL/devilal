@@ -1,11 +1,11 @@
 package com.terminal_devilal.indicators.atr.service;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.atr.entities.AverageTrueRangeEntity;
+import com.terminal_devilal.indicators.atr.entities.projections.TrueRangeProjection;
 import com.terminal_devilal.indicators.atr.repository.AverageTrueRangeRepository;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
@@ -34,8 +34,8 @@ public class AverageTrueRangeService extends ResilientBatchService<AverageTrueRa
 		this.averageTrueRangeRepository.save(averageTrueRangeEntities);
 	}
 
-	public List<AverageTrueRangeEntity> getATRForTickerFromDate(String ticker, LocalDate fromDate) {
-		return averageTrueRangeRepository.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
+	public List<TrueRangeProjection> getLastNRecordsPerTicker(List<String> tickers, int n) {
+		return averageTrueRangeRepository.findLastNRecordsPerTicker(tickers, n);
 	}
 
 	public double calculateTrueRange(double high, double low, double prevClose) {
