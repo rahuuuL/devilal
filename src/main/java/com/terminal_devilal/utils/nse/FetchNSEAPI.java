@@ -8,6 +8,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -27,41 +29,74 @@ public class FetchNSEAPI {
 
 	private final String PDV_BASE_URL = "https://www.nseindia.com/api/historicalOR/generateSecurityWiseHistoricalData?from=%s&to=%s&symbol=%s&type=priceVolumeDeliverable&series=EQ";
 
-	private final String TRADE_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s&section=trade_info";
+	private final String TRADE_INFO = "https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getSymbolData&marketType=N&series=EQ&symbol=%s";
 
 	private final String TICKER_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s";
 
 	private final RestTemplate restTemplate = new RestTemplate();
 
+	private static final Logger log = LoggerFactory.getLogger(FetchNSEAPI.class);
+	
 	public FetchNSEAPI(StaticCache cache) {
 		this.cache = cache;
 	}
 
+
 	public JsonNode NSEAPICall(String url) throws IOException, InterruptedException {
 
-		// NSE API call preparation
-		HttpClient client = HttpClient.newHttpClient();
+	    log.info("NSE API call initiated | url={}", url);
 
-		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url))
-				.header("User-Agent",
-						"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36")
-				.header("Accept", "application/json, text/javascript, */*; q=0.01")
-				.header("Accept-Language", "en-US,en;q=0.9").header("Referer", "https://www.nseindia.com/")
-				.header("Origin", "https://www.nseindia.com").header("X-Requested-With", "XMLHttpRequest")
-				.header("Cookie", cache.get(StaticCache.COOKIE)).build();
+	    HttpClient client = HttpClient.newHttpClient();
 
-		// Call NSE API
-		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+	    HttpRequest request = HttpRequest.newBuilder()
+	            .uri(URI.create(url))
+	            .header("User-Agent",
+	                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36")
+	            .header("Accept", "application/json, text/javascript, */*; q=0.01")
+	            .header("Accept-Language", "en-US,en;q=0.9")
+	            .header("Referer", "https://www.nseindia.com/")
+	            .header("Origin", "https://www.nseindia.com")
+	            .header("X-Requested-With", "XMLHttpRequest")
+	            .header("Cookie", cache.get(StaticCache.COOKIE))
+	            .build();
 
-		if (response.statusCode() != 200) {
-			throw new IOException("Failed: " + response.statusCode() + " - " + response.body());
-		}
+	    HttpResponse<String> response;
+	    try {
+	        response = client.send(request, HttpResponse.BodyHandlers.ofString());
+	    } catch (IOException e) {
+	        log.error("NSE API call failed at network level | url={} | error={}", url, e.getMessage(), e);
+	        throw e;
+	    } catch (InterruptedException e) {
+	        log.error("NSE API call interrupted | url={}", url, e);
+	        Thread.currentThread().interrupt(); // restore interrupt flag
+	        throw e;
+	    }
 
-		// Convert to JSON
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode json = mapper.readTree(response.body());
+	    int statusCode = response.statusCode();
+	    log.debug("NSE API response received | url={} | status={} | bodyLength={}",
+	            url, statusCode, response.body() == null ? 0 : response.body().length());
 
-		return json;
+	    if (statusCode != 200) {
+	        // Trim body in log to avoid flooding logs with huge HTML error pages
+	        String bodySnippet = response.body() != null
+	                ? response.body().substring(0, Math.min(500, response.body().length()))
+	                : "<empty>";
+	        log.error("NSE API returned non-200 | url={} | status={} | bodySnippet={}",
+	                url, statusCode, bodySnippet);
+	        throw new IOException("NSE API failed | status=" + statusCode + " | url=" + url + " | body=" + bodySnippet);
+	    }
+
+	    log.info("NSE API call successful | url={} | status={}", url, statusCode);
+
+	    try {
+	        ObjectMapper mapper = new ObjectMapper();
+	        JsonNode json = mapper.readTree(response.body());
+	        return json;
+	    } catch (IOException e) {
+	        log.error("Failed to parse NSE API response as JSON | url={} | body={}",
+	                url, response.body(), e);
+	        throw e;
+	    }
 	}
 
 	public NseQuoteResponse fetchQuote(String symbol) {

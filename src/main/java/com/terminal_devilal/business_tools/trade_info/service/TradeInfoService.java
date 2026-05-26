@@ -24,7 +24,7 @@ public class TradeInfoService {
 
 	public Optional<TradeInfo> parseTradeInfo(JsonNode rootNode, String ticker, LocalDate date) {
 		try {
-			JsonNode tradeInfoNode = rootNode.path("marketDeptOrderBook").path("tradeInfo");
+			JsonNode tradeInfoNode = rootNode.path("equityResponse").path("tradeInfo");
 
 			if (tradeInfoNode.isMissingNode() || tradeInfoNode.isNull()) {
 				System.err.println("Missing 'tradeInfo' node for ticker: " + ticker);

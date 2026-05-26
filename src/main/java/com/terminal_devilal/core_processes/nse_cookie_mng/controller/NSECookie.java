@@ -46,10 +46,7 @@ public class NSECookie {
 
 		try {
 			String ticker = "HAL";
-
-			String url = String.format("https://www.nseindia.com/api/quote-equity?symbol=%s&section=trade_info",
-					ticker);
-
+			String url = fetchNSEAPI.buildTradeInfoUrl(ticker);
 			this.fetchNSEAPI.NSEAPICall(url);
 			SaveCookieResponse res = new SaveCookieResponse("Valid", true);
 
