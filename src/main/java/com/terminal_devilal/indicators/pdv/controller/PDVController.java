@@ -39,4 +39,9 @@ public class PDVController {
 		return priceDeliveryVolumeService.getPDVForTickerSince(fromDate, tickers);
 	}
 
+	@GetMapping("/latest-price-volume-data")
+	public List<PriceOhlcvProjection> getLatestRecordForTickers(@RequestParam("tickers") List<String> tickers) {
+		return priceDeliveryVolumeService.getLatestRecordForTickers(tickers);
+	}
+
 }

@@ -38,16 +38,24 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 	List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
 
 	@Query(value = """
-			SELECT p.*
-			FROM pdvt p
-			JOIN (
-			    SELECT ticker, MAX(date) AS max_date
-			    FROM pdvt
-			    WHERE ticker IN (:tickers)
-			    GROUP BY ticker
-			) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
-			""", nativeQuery = true)
-	List<PriceDeliveryVolumeEntity> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
+	        SELECT p.ticker,
+	               p.date,
+	               p.open,
+	               p.close,
+	               p.high,
+	               p.low,
+	               p.del_percent  AS deliveryPercentage,
+	               p.volume,
+	               p.vwap
+	        FROM pdvt p
+	        JOIN (
+	            SELECT ticker, MAX(date) AS max_date
+	            FROM pdvt
+	            WHERE ticker IN (:tickers)
+	            GROUP BY ticker
+	        ) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
+	        """, nativeQuery = true)
+	List<PriceOhlcvProjection> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
 
 	@Query("SELECT sp "
 			+ "FROM PriceDeliveryVolumeEntity sp WHERE sp.date >= :from AND sp.ticker IN (:tickers) ORDER BY sp.date")

@@ -51,7 +51,7 @@ public class PriceDeliveryVolumeService {
 		return repository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
 	}
 
-	public List<PriceDeliveryVolumeEntity> getLatestRecordForTickers(List<String> tickers) {
+	public List<PriceOhlcvProjection> getLatestRecordForTickers(List<String> tickers) {
 		return repository.findLatestRecordForTickers(tickers);
 	}
 
