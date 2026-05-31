@@ -17,6 +17,7 @@ import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
+import com.terminal_devilal.utils.common_calcs.PercentileCalculator;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;
@@ -160,9 +161,7 @@ public class RSIService extends ResilientBatchService<RSIEntity> {
 					.map(d -> use14DayRsi ? d.getFourtheenDaysRSI() : d.getTweentyOneDaysRSI()).sorted().toList();
 
 			// 4️⃣ Percentile calculation
-			long countBelow = rsiSeries.stream().filter(v -> v < targetRsi).count();
-
-			double percentile = (double) countBelow / rsiSeries.size() * 100.0;
+			double percentile = PercentileCalculator.computePercentileSorted(rsiSeries, targetRsi);
 
 			// 5️⃣ Build DTO (only RSI-related fields)
 			RsiPercentileDTO dto = new RsiPercentileDTO();

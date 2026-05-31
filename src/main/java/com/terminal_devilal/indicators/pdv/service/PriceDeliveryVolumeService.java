@@ -1,13 +1,10 @@
 package com.terminal_devilal.indicators.pdv.service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -16,9 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
+import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
-import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 @Service
@@ -28,14 +25,10 @@ public class PriceDeliveryVolumeService {
 
 	private final PriceDeliveryVolumeUtility utils;
 
-	private final Executor dbExecutor;
-
-	public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PriceDeliveryVolumeUtility utils,
-			Executor dbExecutor) {
+	public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PriceDeliveryVolumeUtility utils) {
 		super();
 		this.repository = repository;
 		this.utils = utils;
-		this.dbExecutor = dbExecutor;
 	}
 
 	@Transactional
@@ -103,35 +96,17 @@ public class PriceDeliveryVolumeService {
 		return stockList;
 	}
 
-	public List<PriceDeliveryVolumeEntity> getClosePricesWithDateRange(LocalDate fromDate, LocalDate toDate,
+	public List<ClosePriceProjection> ClosePricesWithBufferInDateRangeForTickers(LocalDate fromDate, LocalDate toDate,
 			List<String> tickers, int window) {
-
-		int batchSize = 5; // 🔑 important: prevents DB overload
-
-		List<List<String>> batches = partition(tickers, batchSize);
-
-		List<CompletableFuture<List<PriceDeliveryVolumeEntity>>> futures = batches.stream()
-				.map(batch -> CompletableFuture.supplyAsync(
-						() -> repository.getWithWindowMultiTicker(batch, fromDate, toDate, window), dbExecutor))
-				.toList();
-
-		return futures.stream().map(CompletableFuture::join).flatMap(List::stream).toList();
-	}
-
-	private <T> List<List<T>> partition(List<T> list, int size) {
-		List<List<T>> partitions = new ArrayList<>();
-		for (int i = 0; i < list.size(); i += size) {
-			partitions.add(list.subList(i, Math.min(i + size, list.size())));
-		}
-		return partitions;
+		return repository.getAllCloseBetweenTwoDatesForTickers(tickers, fromDate.minusDays(window * 3), toDate);
 	}
 
 	public List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
 		return repository.getAllVolumesBetweenTwoDates(fromDate, toDate);
 	}
 
-	public List<RollingPriceSlopeProjection> getAllPricesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
-		return repository.getAllPricesBetweenTwoDates(fromDate, toDate);
+	public List<ClosePriceProjection> getAllClosesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
+		return repository.getAllCloseBetweenTwoDates(fromDate, toDate);
 	}
 
 }
