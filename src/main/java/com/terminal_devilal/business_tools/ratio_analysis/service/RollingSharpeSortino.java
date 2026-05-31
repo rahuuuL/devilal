@@ -2,103 +2,96 @@ package com.terminal_devilal.business_tools.ratio_analysis.service;
 
 public final class RollingSharpeSortino {
 
-    private final double[] returns;
+	private final double[] returns;
+	private final int window;
 
-    private int head = 0;
-    private int size = 0;
+	private int head = 0;
+	private int size = 0;
 
-    private double sum = 0.0;
-    private double sumSq = 0.0;
-    private double downsideSumSq = 0.0;
+	private double sum = 0.0;
+	private double sumSq = 0.0;
 
-    public RollingSharpeSortino(int window) {
-        this.returns = new double[window];
-    }
+	// downside deviation uses MAR-adjusted returns
+	private double downsideSumSq = 0.0;
 
-    public void add(double value) {
+	private final double mar; // mean annual risk-free converted to per-period
 
-        if (size == returns.length) {
+	public RollingSharpeSortino(int window, double riskFreeRateAnnual) {
+		this.window = window;
+		this.returns = new double[window];
 
-            double old = returns[head];
+		this.mar = riskFreeRateAnnual / 252.0;
+	}
 
-            sum -= old;
-            sumSq -= old * old;
+	public void add(double r) {
 
-            if (old < 0) {
-                downsideSumSq -= old * old;
-            }
+		// If buffer is full → remove oldest value
+		if (size == window) {
+			double old = returns[head];
 
-        } else {
-            size++;
-        }
+			sum -= old;
+			sumSq -= old * old;
 
-        returns[head] = value;
+			double oldDiff = old - mar;
+			if (oldDiff < 0) {
+				downsideSumSq -= oldDiff * oldDiff;
+			}
 
-        sum += value;
-        sumSq += value * value;
+		} else {
+			size++;
+		}
 
-        if (value < 0) {
-            downsideSumSq += value * value;
-        }
+		// insert new value
+		returns[head] = r;
 
-        head = (head + 1) % returns.length;
-    }
+		sum += r;
+		sumSq += r * r;
 
-    public boolean isReady() {
-        return size == returns.length;
-    }
+		double diff = r - mar;
+		if (diff < 0) {
+			downsideSumSq += diff * diff;
+		}
 
-    public double getMean() {
-        return sum / size;
-    }
+		head = (head + 1) % window;
+	}
 
-    public double getStdDev() {
+	public boolean isReady() {
+		return size == window;
+	}
 
-        double mean = getMean();
+	// ===== Sharpe =====
+	public double getMean() {
+		return sum / size;
+	}
 
-        double variance =
-                (sumSq / size) - (mean * mean);
+	public double getStdDev() {
+		double mean = getMean();
+		double variance = (sumSq / size) - (mean * mean);
 
-        if (variance <= 0) {
-            return 0;
-        }
+		return variance > 0 ? Math.sqrt(variance) : 0.0;
+	}
 
-        return Math.sqrt(variance);
-    }
+	public double getSharpe() {
+		double std = getStdDev();
+		if (std == 0)
+			return 0;
 
-    public double getDownsideDeviation() {
+		double excess = getMean() - mar;
+		return excess / std;
+	}
 
-        double downsideVariance =
-                downsideSumSq / size;
+	// ===== Sortino =====
+	public double getDownsideDeviation() {
+		double variance = downsideSumSq / size;
+		return variance > 0 ? Math.sqrt(variance) : 0.0;
+	}
 
-        if (downsideVariance <= 0) {
-            return 0;
-        }
+	public double getSortino() {
+		double dd = getDownsideDeviation();
+		if (dd == 0)
+			return 0;
 
-        return Math.sqrt(downsideVariance);
-    }
-
-    public double getSharpe(double riskFreeRate) {
-
-        double stdDev = getStdDev();
-
-        if (stdDev == 0) {
-            return 0;
-        }
-
-        return (getMean() - riskFreeRate) / stdDev;
-    }
-
-    public double getSortino(double riskFreeRate) {
-
-        double downsideDeviation =
-                getDownsideDeviation();
-
-        if (downsideDeviation == 0) {
-            return 0;
-        }
-
-        return (getMean() - riskFreeRate)
-                / downsideDeviation;
-    }
+		double excess = getMean() - mar;
+		return excess / dd;
+	}
 }

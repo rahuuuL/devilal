@@ -34,7 +34,7 @@ public class SharpeRatioService {
 
 		double previousClose = 0;
 
-		RollingSharpeSortino rolling = new RollingSharpeSortino(WINDOW);
+		RollingSharpeSortino rolling = new RollingSharpeSortino(WINDOW, riskFreeRate);
 
 		boolean firstRowForTicker = true;
 
@@ -48,7 +48,7 @@ public class SharpeRatioService {
 
 				previousClose = 0;
 
-				rolling = new RollingSharpeSortino(WINDOW);
+				rolling = new RollingSharpeSortino(WINDOW, riskFreeRate);
 
 				firstRowForTicker = true;
 			}
@@ -74,8 +74,8 @@ public class SharpeRatioService {
 
 				out.setTicker(ticker);
 				out.setDate(row.getDate());
-				out.setSharpeRatio(rolling.getSharpe(riskFreeRate));
-				out.setSortinoRatio(rolling.getSortino(riskFreeRate));
+				out.setSharpeRatio(rolling.getSharpe());
+				out.setSortinoRatio(rolling.getSortino());
 
 				result.add(out);
 			}
