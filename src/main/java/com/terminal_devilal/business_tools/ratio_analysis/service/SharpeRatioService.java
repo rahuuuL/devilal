@@ -2,16 +2,12 @@ package com.terminal_devilal.business_tools.ratio_analysis.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.ratio_analysis.dto.RatioTImeSeries;
-import com.terminal_devilal.business_tools.ratio_analysis.dto.SharpeRatioDTO;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @Service
@@ -24,140 +20,67 @@ public class SharpeRatioService {
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 	}
 
-	public Map<String, SharpeRatioDTO> computeSharpeRatios(LocalDate fromDate, double riskFreeRate) {
-		Map<String, List<Double>> priceMap = priceDeliveryVolumeService.getGroupedClosePrices(fromDate);
-
-		// Compute Ratios in parallel
-		return priceMap.entrySet().parallelStream().filter(e -> e.getValue().size() > 1)
-				.collect(Collectors.toMap(Map.Entry::getKey, e -> {
-					return calculateSharpeSortino(e.getValue(), riskFreeRate);
-				}));
-	}
-
-	public Map<String, SharpeRatioDTO> computeSharpeRatios(LocalDate fromDate, double riskFreeRate,
-			List<String> tickers) {
-		Map<String, List<Double>> priceMap = priceDeliveryVolumeService.getClosePricesForTickerSince(fromDate, tickers);
-
-		// Compute Ratios in parallel
-		return priceMap.entrySet().parallelStream().filter(e -> e.getValue().size() > 1)
-				.collect(Collectors.toMap(Map.Entry::getKey, e -> {
-					return calculateSharpeSortino(e.getValue(), riskFreeRate);
-				}));
-	}
-
-	public SharpeRatioDTO calculateSharpeSortino(List<Double> prices, double riskFreeRate) {
-		if (prices.size() < 2)
-			return new SharpeRatioDTO(0, 0, prices.size(), 0);
-
-		List<Double> returns = new ArrayList<>();
-		for (int i = 1; i < prices.size(); i++) {
-			double r = (prices.get(i) / prices.get(i - 1)) - 1;
-			returns.add(r);
-		}
-
-		// Sharpe ratio calculations
-		double mean = returns.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-
-		double stddev = Math.sqrt(returns.stream().mapToDouble(r -> Math.pow(r - mean, 2)).average().orElse(0));
-
-		int days = returns.size();
-
-		double rawSharpe = (stddev == 0) ? 0 : (mean - riskFreeRate / 252) / stddev;
-
-		double annualSharpe = 0;
-		if (days >= 20) { // avoid annualizing small periods
-			double annualReturn = mean * 252;
-			double annualVolatility = stddev * Math.pow(252, 0.5);
-			annualSharpe = (annualVolatility == 0) ? 0 : (annualReturn - riskFreeRate) / annualVolatility;
-		}
-
-		// Sortino ratio calculations
-		double threshold = riskFreeRate / 252;
-		double downsideDeviation = Math.sqrt(returns.stream().filter(r -> r < threshold)
-				.mapToDouble(r -> Math.pow(r - threshold, 2)).average().orElse(0));
-
-		double sortino = (downsideDeviation == 0) ? 0 : (mean - threshold) / downsideDeviation;
-
-		return new SharpeRatioDTO(rawSharpe, annualSharpe, days, sortino);
-	}
-
-	// TODO : Remove on later stages once confirmed
-	public double calculateSortino(List<Double> prices, double riskFreeRate) {
-
-		List<Double> returns = new ArrayList<>();
-		for (int i = 1; i < prices.size(); i++) {
-			double r = (prices.get(i) / prices.get(i - 1)) - 1;
-			returns.add(r);
-		}
-
-		double mean = returns.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-		double threshold = riskFreeRate / 252;
-
-		double downsideDeviation = Math.sqrt(returns.stream().filter(r -> r < threshold)
-				.mapToDouble(r -> Math.pow(r - threshold, 2)).average().orElse(0));
-
-		return (downsideDeviation == 0) ? 0 : (mean - threshold) / downsideDeviation;
-	}
-
 	public List<RatioTImeSeries> computeRatiosForTimeFrame(List<String> tickers, LocalDate fromDate, LocalDate toDate,
 			double riskFreeRate, int window) {
 
-		final int WINDOW = Math.max(window, 20); // enforce minimum window
+		final int WINDOW = Math.max(window, 20);
 
-		// ✅ SINGLE CALL (already parallel + batched internally)
-		List<PriceDeliveryVolumeEntity> allData = priceDeliveryVolumeService.getClosePricesWithDateRange(fromDate,
-				toDate, tickers, WINDOW);
-
-		// Group data by ticker (preserves date ordering)
-		Map<String, List<PriceDeliveryVolumeEntity>> dataByTicker = allData.stream().collect(
-				Collectors.groupingBy(PriceDeliveryVolumeEntity::getTicker, LinkedHashMap::new, Collectors.toList()));
+		List<ClosePriceProjection> allData = priceDeliveryVolumeService
+				.ClosePricesWithBufferInDateRangeForTickers(fromDate, toDate, tickers, WINDOW);
 
 		List<RatioTImeSeries> result = new ArrayList<>();
 
-		// CPU-side rolling calculation per ticker
-		for (Map.Entry<String, List<PriceDeliveryVolumeEntity>> entry : dataByTicker.entrySet()) {
+		String currentTicker = null;
 
-			List<PriceDeliveryVolumeEntity> data = entry.getValue();
+		double previousClose = 0;
 
-			if (data.size() < WINDOW) {
+		RollingSharpeSortino rolling = new RollingSharpeSortino(WINDOW);
+
+		boolean firstRowForTicker = true;
+
+		for (ClosePriceProjection row : allData) {
+
+			String ticker = row.getTicker();
+
+			if (!ticker.equals(currentTicker)) {
+
+				currentTicker = ticker;
+
+				previousClose = 0;
+
+				rolling = new RollingSharpeSortino(WINDOW);
+
+				firstRowForTicker = true;
+			}
+
+			double close = row.getClose();
+
+			if (firstRowForTicker) {
+
+				previousClose = close;
+
+				firstRowForTicker = false;
+
 				continue;
 			}
 
-			// Extract close prices once
-			List<Double> closes = data.stream().map(PriceDeliveryVolumeEntity::getClose).toList();
+			double dailyReturn = (close - previousClose) / previousClose;
 
-			for (int i = WINDOW; i < data.size(); i++) {
+			rolling.add(dailyReturn);
 
-				PriceDeliveryVolumeEntity row = data.get(i);
-
-				List<Double> windowPrices = closes.subList(i - WINDOW, i);
-
-				SharpeRatioDTO dto = calculateSharpeSortino(windowPrices, riskFreeRate);
+			if (rolling.isReady()) {
 
 				RatioTImeSeries out = new RatioTImeSeries();
 
-				// ---- Market data ----
-				out.setTicker(row.getTicker());
+				out.setTicker(ticker);
 				out.setDate(row.getDate());
-				out.setOpen(row.getOpen());
-				out.setHigh(row.getHigh());
-				out.setLow(row.getLow());
-				out.setClose(row.getClose());
-				out.setLastTradeValue(row.getLastTradeValue());
-				out.setPrevoiusClosePrice(row.getPrevoiusClosePrice());
-				out.setVolume(row.getVolume());
-				out.setValue(row.getValue());
-				out.setTrades(row.getTrades());
-				out.setDeliveryTrade(row.getDeliveryTrade());
-				out.setDeliveryPercentage(row.getDeliveryPercentage());
-				out.setVwap(row.getVwap());
-
-				// ---- Ratios ----
-				out.setSharpeRatio(dto.getRawSharpe());
-				out.setSortinoRatio(dto.getRawSortino());
+				out.setSharpeRatio(rolling.getSharpe(riskFreeRate));
+				out.setSortinoRatio(rolling.getSortino(riskFreeRate));
 
 				result.add(out);
 			}
+
+			previousClose = close;
 		}
 
 		return result;

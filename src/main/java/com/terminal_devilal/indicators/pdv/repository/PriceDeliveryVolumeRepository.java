@@ -11,9 +11,9 @@ import org.springframework.stereotype.Repository;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
+import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
-import com.terminal_devilal.indicators.pdv.entities.projections.RollingPriceSlopeProjection;
 
 @Repository
 public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {
@@ -38,73 +38,29 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 	List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
 
 	@Query(value = """
-	        SELECT p.ticker,
-	               p.date,
-	               p.open,
-	               p.close,
-	               p.high,
-	               p.low,
-	               p.del_percent  AS deliveryPercentage,
-	               p.volume,
-	               p.vwap
-	        FROM pdvt p
-	        JOIN (
-	            SELECT ticker, MAX(date) AS max_date
-	            FROM pdvt
-	            WHERE ticker IN (:tickers)
-	            GROUP BY ticker
-	        ) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
-	        """, nativeQuery = true)
+			SELECT p.ticker,
+			       p.date,
+			       p.open,
+			       p.close,
+			       p.high,
+			       p.low,
+			       p.del_percent  AS deliveryPercentage,
+			       p.volume,
+			       p.vwap
+			FROM pdvt p
+			JOIN (
+			    SELECT ticker, MAX(date) AS max_date
+			    FROM pdvt
+			    WHERE ticker IN (:tickers)
+			    GROUP BY ticker
+			) latest ON p.ticker = latest.ticker AND p.date = latest.max_date
+			""", nativeQuery = true)
 	List<PriceOhlcvProjection> findLatestRecordForTickers(@Param("tickers") List<String> tickers);
 
 	@Query("SELECT sp "
 			+ "FROM PriceDeliveryVolumeEntity sp WHERE sp.date >= :from AND sp.ticker IN (:tickers) ORDER BY sp.date")
 	List<PriceDeliveryVolumeEntity> getPDVForTickers(@Param("from") LocalDate from,
 			@Param("tickers") List<String> tickers);
-
-	@Query(value = """
-			SELECT
-			    ticker,
-			    date,
-			    high,
-			    low,
-			    open,
-			    close,
-			    ltp,
-			    prev_close,
-			    volume,
-			    value,
-			    trades,
-			    del_trade,
-			    del_percent,
-			    vwap
-			FROM (
-			    -- Previous window rows per ticker
-			    SELECT
-			        pdvt.*,
-			        ROW_NUMBER() OVER (
-			            PARTITION BY ticker
-			            ORDER BY date DESC
-			        ) AS rn
-			    FROM pdvt
-			    WHERE ticker IN (:tickers)
-			      AND date < :fromDate
-
-			    UNION ALL
-
-			    -- Main date range
-			    SELECT
-			        pdvt.*,
-			        NULL AS rn
-			    FROM pdvt
-			    WHERE ticker IN (:tickers)
-			      AND date BETWEEN :fromDate AND :toDate
-			) x
-			WHERE rn IS NULL OR rn <= :window
-			ORDER BY ticker, date
-			""", nativeQuery = true)
-	List<PriceDeliveryVolumeEntity> getWithWindowMultiTicker(@Param("tickers") List<String> tickers,
-			@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate, @Param("window") int window);
 
 	@Query(value = """
 			SELECT
@@ -123,13 +79,26 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 			SELECT
 			    ticker       AS ticker,
 			    date         AS date,
-			    close        AS price
+			    close        AS close
 			FROM pdvt
 			WHERE date >= :fromDate
 			  AND date <= :toDate
 			ORDER BY ticker, date ASC
 			""", nativeQuery = true)
-	List<RollingPriceSlopeProjection> getAllPricesBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
+	List<ClosePriceProjection> getAllCloseBetweenTwoDates(@Param("fromDate") LocalDate fromDate,
 			@Param("toDate") LocalDate toDate);
+
+	@Query(value = """
+			SELECT
+			     ticker AS ticker,
+			     date AS date,
+			     close AS close
+			FROM pdvt
+			WHERE ticker IN (:tickers)
+			  AND date BETWEEN :fromDate AND :toDate
+			ORDER BY ticker, date ASC;
+									""", nativeQuery = true)
+	List<ClosePriceProjection> getAllCloseBetweenTwoDatesForTickers(@Param("tickers") List<String> tickers,
+			@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
 }
