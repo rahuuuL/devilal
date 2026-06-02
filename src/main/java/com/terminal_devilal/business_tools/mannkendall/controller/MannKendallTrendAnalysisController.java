@@ -28,26 +28,25 @@ public class MannKendallTrendAnalysisController {
 	/**
 	 * Endpoint: GET /api/devilal/mannKendallTrendAnalysis?fromDate=2023-01-01
 	 */
-	@GetMapping("/market")
-	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
+	@GetMapping("/log-close/trend")
+	public ResponseEntity<List<MannKendallAPIResponse>> getMannKendallAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-			@RequestParam("column") String columnName) {
+			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
-				columnName);
+		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
+				toDate);
 		return ResponseEntity.ok(results);
 	}
 
-	@GetMapping("/tickers")
-	public ResponseEntity<List<MannKendallAPIResponse>> getTrendAnalysis(
-			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-			@RequestParam("column") String columnName, @RequestParam("tickers") List<String> tickers) {
-
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
-				columnName, tickers);
-		return ResponseEntity.ok(results);
-	}
+//	@GetMapping("/tickers")
+//	public ResponseEntity<List<MannKendallAPIResponse>> getMannKendallAnalysis(
+//			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+//			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+//			@RequestParam("column") String columnName, @RequestParam("tickers") List<String> tickers) {
+//
+//		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate, toDate,
+//				columnName, tickers);
+//		return ResponseEntity.ok(results);
+//	}
 
 }

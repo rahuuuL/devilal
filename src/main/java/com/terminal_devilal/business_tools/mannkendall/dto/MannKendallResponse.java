@@ -1,12 +1,17 @@
 package com.terminal_devilal.business_tools.mannkendall.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class MannKendallResponse {
 
 	private String trend;
 	private Boolean h;
 	private Double p;
 	private Double z;
-	private Double Tau;
+
+	@JsonProperty("Tau")
+	private Double tau;
+
 	private Double s;
 	private Double var_s;
 	private Double slope;
@@ -22,7 +27,7 @@ public class MannKendallResponse {
 		this.h = h;
 		this.p = p;
 		this.z = z;
-		Tau = tau;
+		this.tau = tau;
 		this.s = s;
 		this.var_s = var_s;
 		this.slope = slope;
@@ -62,11 +67,11 @@ public class MannKendallResponse {
 	}
 
 	public Double getTau() {
-		return Tau;
+		return this.tau;
 	}
 
 	public void setTau(Double tau) {
-		Tau = tau;
+		this.tau = tau;
 	}
 
 	public Double getS() {
@@ -103,7 +108,7 @@ public class MannKendallResponse {
 
 	@Override
 	public String toString() {
-		return "MannKendallResponse [trend=" + trend + ", h=" + h + ", p=" + p + ", z=" + z + ", Tau=" + Tau + ", s="
+		return "MannKendallResponse [trend=" + trend + ", h=" + h + ", p=" + p + ", z=" + z + ", tau=" + tau + ", s="
 				+ s + ", var_s=" + var_s + ", slope=" + slope + ", intercept=" + intercept + "]";
 	}
 

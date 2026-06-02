@@ -4,13 +4,17 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 
 	private String ticker;
 
+	// Score
+	private double score;
+
 	public MannKendallAPIResponse() {
 		super();
 	}
 
-	public MannKendallAPIResponse(String ticker, MannKendallResponse response) {
+	public MannKendallAPIResponse(String ticker, double score, MannKendallResponse response) {
 		super();
 		this.ticker = ticker;
+		this.score = score;
 
 		// Copy all fields from response to this
 		this.setTrend(response.getTrend());
@@ -22,6 +26,7 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 		this.setVar_s(response.getVar_s());
 		this.setSlope(response.getSlope());
 		this.setIntercept(response.getIntercept());
+
 	}
 
 	public String getTicker() {
@@ -31,4 +36,13 @@ public class MannKendallAPIResponse extends MannKendallResponse {
 	public void setTicker(String ticker) {
 		this.ticker = ticker;
 	}
+
+	public double getScore() {
+		return score;
+	}
+
+	public void setScore(double score) {
+		this.score = score;
+	}
+
 }

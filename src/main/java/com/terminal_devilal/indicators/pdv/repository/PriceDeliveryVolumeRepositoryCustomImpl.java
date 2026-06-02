@@ -49,9 +49,11 @@ public class PriceDeliveryVolumeRepositoryCustomImpl {
 		}).collect(Collectors.toList());
 	}
 
-	public Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate from, LocalDate to, String inputColumnName) {
-		// Match input string with enum
+	public List<TickerValue> fetchTickerValuesByColumn(LocalDate from, LocalDate to, String inputColumnName) {
+
+		// 1. validate column safely
 		PriceVolumeDeliveryColumn matchedColumn = null;
+
 		for (PriceVolumeDeliveryColumn col : PriceVolumeDeliveryColumn.values()) {
 			if (col.getColumnName().equalsIgnoreCase(inputColumnName)) {
 				matchedColumn = col;
@@ -59,14 +61,28 @@ public class PriceDeliveryVolumeRepositoryCustomImpl {
 			}
 		}
 
-		// If no valid column found, handle gracefully
 		if (matchedColumn == null) {
 			throw new IllegalArgumentException("Invalid column name: " + inputColumnName);
 		}
 
-		// Call the method with matched column name
-		return getTickerValues(from, to, matchedColumn.getColumnName()).stream().collect(Collectors
-				.groupingBy(TickerValue::getTicker, Collectors.mapping(TickerValue::getValue, Collectors.toList())));
+		// 2. build criteria query
+		CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+		CriteriaQuery<Tuple> cq = cb.createTupleQuery();
+		Root<PriceDeliveryVolumeEntity> root = cq.from(PriceDeliveryVolumeEntity.class);
+
+		cq.multiselect(root.get("ticker").alias("ticker"), root.get("date").alias("date"),
+				root.get(matchedColumn.getColumnName()).alias("value"));
+
+		cq.where(cb.and(cb.greaterThanOrEqualTo(root.get("date"), from), cb.lessThanOrEqualTo(root.get("date"), to)));
+
+		// IMPORTANT: ordering for streaming logic
+		cq.orderBy(cb.asc(root.get("ticker")), cb.asc(root.get("date")));
+
+		// 3. execute + map directly to POJO
+		return entityManager.createQuery(cq).getResultList().stream()
+				.map(tuple -> new TickerValue(tuple.get("ticker", String.class), tuple.get("date", LocalDate.class),
+						((Number) tuple.get("value")).doubleValue()))
+				.toList();
 	}
 
 	public List<TickerValue> getTickerValues(LocalDate from, LocalDate to, String columnName, List<String> tickers) {

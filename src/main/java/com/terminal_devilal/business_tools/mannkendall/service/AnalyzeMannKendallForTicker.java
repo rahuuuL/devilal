@@ -1,14 +1,16 @@
 package com.terminal_devilal.business_tools.mannkendall.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallAPIResponse;
+import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepositoryCustomImpl;
 import com.terminal_devilal.utils.python_server_service.PythonStatsServerAPIService;
 
@@ -28,42 +30,45 @@ public class AnalyzeMannKendallForTicker {
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate,
-			String inputColumnName) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate,
-				inputColumnName);
-		return analysisProcess(groupedClosePrices, fromDate, toDate, inputColumnName);
+	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate) {
+		// get all close prices
+		List<TickerValue> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate, "close");
+
+		return analysisProcess(groupedClosePrices, fromDate, toDate);
 	}
 
 	/**
 	 * Public method to get Mann-Kendall trend analysis results by ticker.
 	 */
-	public List<MannKendallAPIResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate,
-			String inputColumnName, List<String> tickers) {
-		Map<String, List<Double>> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate,
-				inputColumnName, tickers);
-		return analysisProcess(groupedClosePrices, fromDate, toDate, inputColumnName);
-	}
+	private List<MannKendallAPIResponse> analysisProcess(List<TickerValue> groupedClosePrices, LocalDate fromDate,
+			LocalDate toDate) {
 
-	private List<MannKendallAPIResponse> analysisProcess(Map<String, List<Double>> groupedClosePrices,
-			LocalDate fromDate, LocalDate toDate, String inputColumnName) {
+		// 1. Build Map in single pass (with log applied)
+		Map<String, List<Double>> tickerMap = new HashMap<>();
 
-		// Call batch API once with all tickers & prices
-		List<MannKendallAPIResponse> batchResponse = pythonClient.analyzeBatch(groupedClosePrices);
+		for (TickerValue tv : groupedClosePrices) {
 
-		// Null handling
+			tickerMap.computeIfAbsent(tv.getTicker(), k -> new ArrayList<>()).add(Math.log(tv.getValue()));
+		}
+
+		// 2. Call API
+		List<MannKendallAPIResponse> batchResponse = pythonClient.analyzeBatch(tickerMap);
+
+		// 3. Filter nulls
 		batchResponse = batchResponse.stream().filter(
 				resp -> resp.getP() != null && resp.getZ() != null && resp.getS() != null && resp.getVar_s() != null)
-				.collect(Collectors.toList());
+				.peek(resp -> {
 
-		Comparator<MannKendallAPIResponse> comparator = Comparator
-				.comparing((MannKendallAPIResponse resp) -> resp.getSlope() != null ? resp.getSlope()
-						: Double.NEGATIVE_INFINITY, Comparator.reverseOrder())
-				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getZ).reversed())
-				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getS).reversed())
-				.thenComparing(Comparator.comparingDouble(MannKendallAPIResponse::getVar_s));
+					double slope = resp.getSlope() != null ? resp.getSlope() : 0.0;
+					double tau = resp.getTau() != null ? resp.getTau() : 0.0;
+					double z = resp.getZ() != null ? resp.getZ() : 0.0;
 
-		batchResponse.sort(comparator);
+					double score = slope * Math.abs(tau) * (z / (1.0 + Math.abs(z)));
+
+					resp.setScore(score);
+				}).sorted(Comparator.comparing(MannKendallAPIResponse::getScore,
+						Comparator.nullsLast(Comparator.reverseOrder())))
+				.toList();
 
 		return batchResponse;
 	}
