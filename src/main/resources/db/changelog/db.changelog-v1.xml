@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="V1-001" author="rahul">
+        <sqlFile path="db/migration/V1_001_pdvt.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-002" author="rahul">
+        <sqlFile path="db/migration/V1_002_dfht.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-003" author="rahul">
+        <sqlFile path="db/migration/V1_003_atrt.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-004" author="rahul">
+        <sqlFile path="db/migration/V1_004_rsi.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-005" author="rahul">
+        <sqlFile path="db/migration/V1_005_vwap.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-006" author="rahul">
+        <sqlFile path="db/migration/V1_006_rule.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-007" author="rahul">
+        <sqlFile path="db/migration/V1_007_track.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-008" author="rahul">
+        <sqlFile path="db/migration/V1_008_track_rule_mapping.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-009" author="rahul">
+        <sqlFile path="db/migration/V1_009_trade_info.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-010" author="rahul">
+        <sqlFile path="db/migration/V1_010_portfolio.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-011" author="rahul">
+        <sqlFile path="db/migration/V1_011_investment_entry.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-012" author="rahul">
+        <sqlFile path="db/migration/V1_012_industry_details.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+</databaseChangeLog>
