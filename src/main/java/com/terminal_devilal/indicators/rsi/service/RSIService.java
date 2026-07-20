@@ -12,11 +12,15 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
 import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.repository.RSIRepository;
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
 import com.terminal_devilal.utils.common_calcs.PercentileCalculator;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
@@ -25,156 +29,156 @@ import jakarta.transaction.Transactional;
 @Service
 public class RSIService extends ResilientBatchService<RSIEntity> {
 
-	private final RSIRepository rSIRepository;
+    private final RSIRepository rSIRepository;
+    private final ConcurrentHashMap<String, ArrayDeque<RSIEntity>> rsiCache = new ConcurrentHashMap<>();
+    private static final int CACHE_MAX = 21;
 
-	// ─── In-memory sliding window cache ───────────────────────────────────────
-	// Key: ticker symbol
-	// Value: ordered deque of up to 21 RSIEntity entries, oldest at head, newest at
-	// tail
-	private final ConcurrentHashMap<String, ArrayDeque<RSIEntity>> rsiCache = new ConcurrentHashMap<>();
-	private static final int CACHE_MAX = 21;
+    public RSIService(RSIRepository rSIRepository, PipelineAuditService pipelineAuditService) {
+        super(pipelineAuditService);
+        this.rSIRepository = rSIRepository;
+    }
 
-	public RSIService(RSIRepository rSIRepository) {
-		super();
-		this.rSIRepository = rSIRepository;
-	}
+    @Transactional
+    public void saveAllRSI(List<RSIEntity> rsis) {
+        this.rSIRepository.saveAll(rsis);
+    }
 
-	@Transactional
-	public void saveAllRSI(List<RSIEntity> rsis) {
-		this.rSIRepository.saveAll(rsis);
-	}
+    @Transactional
+    public void saveRSI(RSIEntity rsis) {
+        this.rSIRepository.save(rsis);
+    }
 
-	@Transactional
-	public void saveRSI(RSIEntity rsis) {
-		this.rSIRepository.save(rsis);
-	}
+    public List<RSIEntity> getAllRSIByDate(LocalDate date) {
+        return rSIRepository.findByDate(date);
+    }
 
-	public List<RSIEntity> getAllRSIByDate(LocalDate date) {
-		return rSIRepository.findByDate(date);
-	}
+    public List<RsiProjection> getRSIWithinDatesForTickers(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
+        return rSIRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
+    }
 
-	public List<RsiProjection> getRSIWithinDatesForTickers(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
-		return rSIRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
-	}
+    public void processRSI(PriceDeliveryVolumeEntity pdv, PipelineTickerContext context) {
+        String ticker = pdv.getTicker();
+        TickerDateId id = new TickerDateId(ticker, pdv.getDate());
+        if (rSIRepository.existsById(id)) {
+            pipelineAuditService.logEvent(context, PipelineAuditStage.RSI_PROCESS, "SKIP", 0,
+                    pdv.getDate().toString(), pdv.getDate().toString(), null,
+                    "RSI already exists for ticker/date", null, null);
+            return;
+        }
 
-	public void processRSI(PriceDeliveryVolumeEntity pdv) {
-		String ticker = pdv.getTicker();
-		double closeDiff = pdv.getClose() - pdv.getPrevoiusClosePrice();
+        double closeDiff = pdv.getClose() - pdv.getPrevoiusClosePrice();
 
-		ArrayDeque<RSIEntity> window = rsiCache.computeIfAbsent(ticker, t -> {
-			List<RSIEntity> dbData = rSIRepository.findRecent21RSIs(ticker, pdv.getDate());
-			return new ArrayDeque<>(dbData);
-		});
+        ArrayDeque<RSIEntity> window = rsiCache.computeIfAbsent(ticker, t -> {
+            List<RSIEntity> dbData = rSIRepository.findRecent21RSIs(ticker, pdv.getDate());
+            return new ArrayDeque<>(dbData);
+        });
 
-		RSIEntity newEntity;
+        RSIEntity newEntity;
 
-		// Single synchronized block — calculate AND slide atomically
-		// Only locks this ticker's window, other tickers process freely in parallel
-		synchronized (window) {
-			List<RSIEntity> snapshot = new ArrayList<>(window);
-			int size = snapshot.size();
+        synchronized (window) {
+            List<RSIEntity> snapshot = new ArrayList<>(window);
+            int size = snapshot.size();
 
-			double rsi14 = size >= 14 ? calculateRSI(snapshot.subList(size - 14, size)) : 0;
-			double rsi21 = size == CACHE_MAX ? calculateRSI(snapshot) : 0;
+            double rsi14 = size >= 14 ? calculateRSI(snapshot.subList(size - 14, size)) : 0;
+            double rsi21 = size == CACHE_MAX ? calculateRSI(snapshot) : 0;
 
-			newEntity = new RSIEntity(ticker, pdv.getDate(), closeDiff, rsi14, rsi21);
+            newEntity = new RSIEntity(ticker, pdv.getDate(), closeDiff, rsi14, rsi21);
 
-			if (window.size() >= CACHE_MAX)
-				window.pollFirst();
-			window.addLast(newEntity);
-		}
-		// enqueue is outside the lock — no need to hold it while adding to the buffer
-		enqueue(newEntity);
-	}
+            if (window.size() >= CACHE_MAX) {
+                window.pollFirst();
+            }
+            window.addLast(newEntity);
+        }
+        context.getMetrics().incrementRsiProcessed();
+        pipelineAuditService.logStageStart(context, PipelineAuditStage.RSI_PROCESS, "RSI processing started");
+        enqueue(newEntity);
+        pipelineAuditService.logStageSuccess(context, PipelineAuditStage.RSI_PROCESS, 1, pdv.getDate().toString(), pdv.getDate().toString(), null, "RSI queued");
+    }
 
-	// ─── RSI calculation ─────────────────────────────────────────────────────
+    private double calculateRSI(List<RSIEntity> rsiData) {
+        double gainSum = 0.0;
+        double lossSum = 0.0;
 
-	private double calculateRSI(List<RSIEntity> rsiData) {
-		double gainSum = 0.0;
-		double lossSum = 0.0;
+        for (RSIEntity data : rsiData) {
+            double change = data.getCloseDiff();
+            if (change > 0) {
+                gainSum += change;
+            } else if (change < 0) {
+                lossSum += Math.abs(change);
+            }
+        }
 
-		for (RSIEntity data : rsiData) {
-			double change = data.getCloseDiff();
-			if (change > 0) {
-				gainSum += change;
-			} else if (change < 0) {
-				lossSum += Math.abs(change);
-			}
-		}
+        double averageGain = gainSum / rsiData.size();
+        double averageLoss = lossSum / rsiData.size();
 
-		double averageGain = gainSum / rsiData.size();
-		double averageLoss = lossSum / rsiData.size();
+        if (averageLoss == 0) {
+            return 100.0;
+        }
 
-		if (averageLoss == 0)
-			return 100.0;
+        double rs = averageGain / averageLoss;
+        return 100.0 - (100.0 / (1 + rs));
+    }
 
-		double rs = averageGain / averageLoss;
-		return 100.0 - (100.0 / (1 + rs));
-	}
+    @Override
+    @Transactional
+    protected void saveAll(List<RSIEntity> batch) {
+        for (RSIEntity entity : batch) {
+            rSIRepository.upsert(entity.getTicker(), entity.getDate(), entity.getCloseDiff(),
+                    entity.getFourtheenDaysRSI(), entity.getTweentyOneDaysRSI());
+        }
+    }
 
-	// ─── ResilientBatchService implementation ─────────────────────────────────
+    @Override
+    @Transactional
+    protected void saveOne(RSIEntity record) {
+        rSIRepository.upsert(record.getTicker(), record.getDate(), record.getCloseDiff(),
+                record.getFourtheenDaysRSI(), record.getTweentyOneDaysRSI());
+    }
 
-	@Override
-	protected void saveAll(List<RSIEntity> batch) {
-		rSIRepository.saveAll(batch);
-	}
+    @Override
+    protected void onPermanentFailure(RSIEntity record, Exception e) {
+        pipelineAuditService.logEvent(null, record.getTicker(), PipelineAuditStage.RSI_SAVE,
+                "FAILURE", 1, record.getDate().toString(), record.getDate().toString(), null,
+                "RSI persistence failed", e.getMessage(), null);
+    }
 
-	@Override
-	protected void saveOne(RSIEntity record) {
-		rSIRepository.save(record);
-	}
+    public List<RsiPercentileDTO> computeRsiPercentiles(LocalDate fromDate, LocalDate toDate, boolean use14DayRsi) {
 
-	// Optional: override to plug in metrics/alerting for permanent failures
-	@Override
-	protected void onPermanentFailure(RSIEntity record, Exception e) {
-		System.err.printf("[RSI][PERMANENT_FAILURE] ticker=%s date=%s closeDiff=%s error=%s%n", record.getTicker(),
-				record.getDate(), record.getCloseDiff(), e.getMessage());
-	}
+        List<RsiPercentileProjection> rows = rSIRepository.findPercentileRecordsBetweenDates(fromDate, toDate);
 
-	public List<RsiPercentileDTO> computeRsiPercentiles(LocalDate fromDate, LocalDate toDate, boolean use14DayRsi) {
+        Map<String, List<RsiPercentileProjection>> byTicker = rows.stream()
+                .collect(Collectors.groupingBy(RsiPercentileProjection::getTicker));
 
-		List<RsiPercentileProjection> rows = rSIRepository.findPercentileRecordsBetweenDates(fromDate, toDate);
+        List<RsiPercentileDTO> result = new ArrayList<>();
 
-		// 1️⃣ Group by ticker
-		Map<String, List<RsiPercentileProjection>> byTicker = rows.stream()
-				.collect(Collectors.groupingBy(RsiPercentileProjection::getTicker));
+        for (Map.Entry<String, List<RsiPercentileProjection>> entry : byTicker.entrySet()) {
 
-		List<RsiPercentileDTO> result = new ArrayList<>();
+            String ticker = entry.getKey();
+            List<RsiPercentileProjection> data = entry.getValue();
 
-		for (Map.Entry<String, List<RsiPercentileProjection>> entry : byTicker.entrySet()) {
+            Optional<RsiPercentileProjection> endDateRow = data.stream().filter(d -> d.getDate().equals(toDate))
+                    .findFirst();
 
-			String ticker = entry.getKey();
-			List<RsiPercentileProjection> data = entry.getValue();
+            if (endDateRow.isEmpty()) {
+                continue;
+            }
 
-			// 2️⃣ Find RSI value on toDate
-			Optional<RsiPercentileProjection> endDateRow = data.stream().filter(d -> d.getDate().equals(toDate))
-					.findFirst();
+            double targetRsi = use14DayRsi ? endDateRow.get().getFourtheenDaysRSI()
+                    : endDateRow.get().getTweentyOneDaysRSI();
 
-			if (endDateRow.isEmpty())
-				continue;
+            List<Double> rsiSeries = data.stream()
+                    .map(d -> use14DayRsi ? d.getFourtheenDaysRSI() : d.getTweentyOneDaysRSI()).sorted().toList();
 
-			double targetRsi = use14DayRsi ? endDateRow.get().getFourtheenDaysRSI()
-					: endDateRow.get().getTweentyOneDaysRSI();
+            double percentile = PercentileCalculator.computePercentileSorted(rsiSeries, targetRsi);
 
-			// 3️⃣ Collect RSI values
-			List<Double> rsiSeries = data.stream()
-					.map(d -> use14DayRsi ? d.getFourtheenDaysRSI() : d.getTweentyOneDaysRSI()).sorted().toList();
+            RsiPercentileDTO dto = new RsiPercentileDTO();
+            dto.setTicker(ticker);
+            dto.setRsiValue(targetRsi);
+            dto.setPercentile(percentile);
 
-			// 4️⃣ Percentile calculation
-			double percentile = PercentileCalculator.computePercentileSorted(rsiSeries, targetRsi);
+            result.add(dto);
+        }
 
-			// 5️⃣ Build DTO (only RSI-related fields)
-			RsiPercentileDTO dto = new RsiPercentileDTO();
-			dto.setTicker(ticker);
-			dto.setRsiValue(targetRsi);
-			dto.setPercentile(percentile);
-
-			// 6️⃣ Enrich with sector + trade info
-
-			result.add(dto);
-		}
-
-		// 7 Sort DESC by percentile
-		return result;
-	}
+        return result;
+    }
 }

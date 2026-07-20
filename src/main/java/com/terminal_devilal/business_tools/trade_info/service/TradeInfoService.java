@@ -1,86 +1,118 @@
 package com.terminal_devilal.business_tools.trade_info.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
-import com.terminal_devilal.business_tools.trade_info.repository.TradeInfoRepository;
-
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
+import com.terminal_devilal.business_tools.trade_info.repository.TradeInfoRepository;
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
 
 @Service
 public class TradeInfoService {
 
-	private final TradeInfoRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(TradeInfoService.class);
 
-	public TradeInfoService(TradeInfoRepository repository) {
-		super();
-		this.repository = repository;
-	}
+    private final TradeInfoRepository repository;
+    private final PipelineAuditService pipelineAuditService;
 
-	public Optional<TradeInfo> parseTradeInfo(JsonNode rootNode, String ticker, LocalDate date) {
-		try {
-			JsonNode tradeInfoNode = rootNode.path("equityResponse").path("tradeInfo");
+    public TradeInfoService(TradeInfoRepository repository, PipelineAuditService pipelineAuditService) {
+        this.repository = repository;
+        this.pipelineAuditService = pipelineAuditService;
+    }
 
-			if (tradeInfoNode.isMissingNode() || tradeInfoNode.isNull()) {
-				System.err.println("Missing 'tradeInfo' node for ticker: " + ticker);
-				return Optional.empty();
-			}
+    public Optional<TradeInfo> parseTradeInfo(JsonNode rootNode, String ticker, LocalDate date) {
+        return parseTradeInfo(rootNode, ticker, date, null);
+    }
 
-			TradeInfo tradeInfo = new TradeInfo();
-			tradeInfo.setTicker(ticker);
-			tradeInfo.setDate(date);
+    public Optional<TradeInfo> parseTradeInfo(JsonNode rootNode, String ticker, LocalDate date, PipelineTickerContext tickerContext) {
+        try {
+            JsonNode tradeInfoNode = rootNode.path("equityResponse").path("tradeInfo");
 
-			tradeInfo.setTotalTradedVolume(getDouble(tradeInfoNode, "totalTradedVolume"));
-			tradeInfo.setTotalTradedValue(getDouble(tradeInfoNode, "totalTradedValue"));
-			tradeInfo.setTotalMarketCap(getDouble(tradeInfoNode, "totalMarketCap"));
-			tradeInfo.setFfmc(getDouble(tradeInfoNode, "ffmc"));
-			tradeInfo.setImpactCost(getDouble(tradeInfoNode, "impactCost"));
-			tradeInfo.setCmDailyVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmDailyVolatility")));
-			tradeInfo.setCmAnnualVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmAnnualVolatility")));
+            if (tradeInfoNode.isMissingNode() || tradeInfoNode.isNull()) {
+                log.warn("Missing tradeInfo node for ticker {}", ticker);
+                if (tickerContext != null) {
+                    pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.TRADEINFO_SAVE,
+                            "TradeInfo missing from API payload", new IllegalStateException("tradeInfo missing"));
+                }
+                return Optional.empty();
+            }
 
-			return Optional.of(tradeInfo);
-		} catch (Exception e) {
-			System.err.println("Error parsing tradeInfo for ticker " + ticker + ": " + e.getMessage());
-			return Optional.empty();
-		}
-	}
+            TradeInfo tradeInfo = new TradeInfo();
+            tradeInfo.setTicker(ticker);
+            tradeInfo.setDate(date);
 
-	private static Double getDouble(JsonNode node, String key) {
-		if (node.has(key) && node.get(key).isNumber()) {
-			return node.get(key).asDouble();
-		}
-		System.err.println("Missing or invalid numeric key: " + key);
-		return null;
-	}
+            tradeInfo.setTotalTradedVolume(getDouble(tradeInfoNode, "totalTradedVolume"));
+            tradeInfo.setTotalTradedValue(getDouble(tradeInfoNode, "totalTradedValue"));
+            tradeInfo.setTotalMarketCap(getDouble(tradeInfoNode, "totalMarketCap"));
+            tradeInfo.setFfmc(getDouble(tradeInfoNode, "ffmc"));
+            tradeInfo.setImpactCost(getDouble(tradeInfoNode, "impactCost"));
+            tradeInfo.setCmDailyVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmDailyVolatility")));
+            tradeInfo.setCmAnnualVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmAnnualVolatility")));
 
-	private double parseDoubleSafe(String value) {
-		try {
-			return Double.parseDouble(value);
-		} catch (NumberFormatException e) {
-			return 0.0; // or Double.NaN, or throw, depending on your needs
-		}
-	}
+            if (tickerContext != null) {
+                pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.TRADEINFO_SAVE, 1, date.toString(), date.toString(), null, "TradeInfo parsed");
+            }
+            return Optional.of(tradeInfo);
+        } catch (Exception e) {
+            log.error("Error parsing tradeInfo for ticker {}", ticker, e);
+            if (tickerContext != null) {
+                pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.TRADEINFO_SAVE,
+                        "TradeInfo parsing failed", e);
+            }
+            return Optional.empty();
+        }
+    }
 
-	private static String getString(JsonNode node, String key) {
-		if (node.has(key)) {
-			return node.get(key).asText();
-		}
-		System.err.println("Missing or invalid string key: " + key);
-		return null;
-	}
+    private static Double getDouble(JsonNode node, String key) {
+        if (node.has(key) && node.get(key).isNumber()) {
+            return node.get(key).asDouble();
+        }
+        log.warn("Missing or invalid numeric key: {}", key);
+        return null;
+    }
 
-	public void saveTradeInfo(TradeInfo data) {
-		this.repository.save(data);
-	}
+    private double parseDoubleSafe(String value) {
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
 
-	public Map<String, TradeInfo> getTradeInfoData() {
-		Map<String, TradeInfo> tradeInfoMap = this.repository.findLatestTradeInfoPerTicker().stream()
-				.collect(Collectors.toMap(TradeInfo::getTicker, Function.identity()));
-		return tradeInfoMap;
-	}
+    private static String getString(JsonNode node, String key) {
+        if (node.has(key)) {
+            return node.get(key).asText();
+        }
+        log.warn("Missing or invalid string key: {}", key);
+        return null;
+    }
+
+    public void saveTradeInfo(TradeInfo data) {
+        this.repository.save(data);
+    }
+
+    public void saveTradeInfo(TradeInfo data, PipelineTickerContext tickerContext) {
+        this.repository.save(data);
+        if (tickerContext != null) {
+            tickerContext.getMetrics().incrementPdvtSaved();
+            pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.TRADEINFO_SAVE, 1,
+                    data.getDate().toString(), data.getDate().toString(), null, "TradeInfo persisted");
+        }
+    }
+
+    public Map<String, TradeInfo> getTradeInfoData() {
+        Map<String, TradeInfo> tradeInfoMap = this.repository.findLatestTradeInfoPerTicker().stream()
+                .collect(Collectors.toMap(TradeInfo::getTicker, Function.identity()));
+        return tradeInfoMap;
+    }
 }

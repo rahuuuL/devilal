@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,195 +24,211 @@ import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.pipeline.audit.PipelineRunContext;
+import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
 import com.terminal_devilal.utils.nse.FetchNSEAPI;
 
 @Service
 public class DataSync {
 
-	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private static final Logger log = LoggerFactory.getLogger(DataSync.class);
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-	private static final int API_THREADS = 8; // I/O threads
-	private static final int PROCESS_THREADS = Runtime.getRuntime().availableProcessors(); // CPU threads
-	private static final int QUEUE_SIZE = 10000;
+    private static final int API_THREADS = 8;
+    private static final int PROCESS_THREADS = Runtime.getRuntime().availableProcessors();
+    private static final int QUEUE_SIZE = 10000;
 
-	private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
-	private final DataFetchHistoryService dataFetchHistoryService;
-	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
-	private final FetchNSEAPI fetchNSEAPI;
-	private final PdvPersistenceService pdvPersistenceService;
-	private final TradeInfoService tradeInfoService;
+    private final DataFetchHistoryService dataFetchHistoryService;
+    private final PriceDeliveryVolumeService priceDeliveryVolumeService;
+    private final FetchNSEAPI fetchNSEAPI;
+    private final PdvPersistenceService pdvPersistenceService;
+    private final TradeInfoService tradeInfoService;
+    private final PipelineAuditService pipelineAuditService;
 
-	public DataSync(DataFetchHistoryService dataFetchHistoryService,
-			PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI,
-			PdvPersistenceService pdvPersistenceService, TradeInfoService tradeInfoService) {
+    public DataSync(DataFetchHistoryService dataFetchHistoryService,
+            PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI,
+            PdvPersistenceService pdvPersistenceService, TradeInfoService tradeInfoService,
+            PipelineAuditService pipelineAuditService) {
 
-		this.dataFetchHistoryService = dataFetchHistoryService;
-		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
-		this.fetchNSEAPI = fetchNSEAPI;
-		this.pdvPersistenceService = pdvPersistenceService;
-		this.tradeInfoService = tradeInfoService;
-	}
+        this.dataFetchHistoryService = dataFetchHistoryService;
+        this.priceDeliveryVolumeService = priceDeliveryVolumeService;
+        this.fetchNSEAPI = fetchNSEAPI;
+        this.pdvPersistenceService = pdvPersistenceService;
+        this.tradeInfoService = tradeInfoService;
+        this.pipelineAuditService = pipelineAuditService;
+    }
 
-	public void processPdvDataTillDate() {
+    public void processPdvDataTillDate() {
 
-		if (!running.compareAndSet(false, true)) {
-			System.out.println("⚠️ PDV sync already running. Skipping.");
-			return;
-		}
+        if (!running.compareAndSet(false, true)) {
+            log.warn("PDV sync already running. Skipping.");
+            return;
+        }
 
-		// 🔥 Pipeline queue
-		BlockingQueue<WorkItem> queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
+        PipelineRunContext runContext = pipelineAuditService.startRun();
+        BlockingQueue<WorkItem> queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
 
-		ExecutorService apiExecutor = Executors.newFixedThreadPool(API_THREADS);
-		ExecutorService processExecutor = Executors.newFixedThreadPool(PROCESS_THREADS);
+        ExecutorService apiExecutor = Executors.newFixedThreadPool(API_THREADS);
+        ExecutorService processExecutor = Executors.newFixedThreadPool(PROCESS_THREADS);
 
-		try {
-			List<DataFetchEntity> records = dataFetchHistoryService.getProcessedDatesForTickers().stream()
-					.filter(d -> d.getPdvtLastDate().isBefore(LocalDate.now())).toList();
+        try {
+            List<DataFetchEntity> records = dataFetchHistoryService.getProcessedDatesForTickers().stream()
+                    .filter(d -> d.getPdvtLastDate().isBefore(LocalDate.now())).toList();
 
-			int total = records.size();
-			AtomicInteger completed = new AtomicInteger();
+            int total = records.size();
+            AtomicInteger completed = new AtomicInteger();
 
-			System.out.println("Starting PDV sync for " + total + " tickers");
+            log.info("Starting PDV sync for {} tickers", total);
 
-			// 🔥 Stage 2: Processing workers
-			for (int i = 0; i < PROCESS_THREADS; i++) {
-				processExecutor.submit(() -> {
-					while (true) {
-						try {
-							WorkItem item = queue.poll(10, TimeUnit.SECONDS);
-							if (item == null)
-								break;
+            for (int i = 0; i < PROCESS_THREADS; i++) {
+                processExecutor.submit(() -> {
+                    while (true) {
+                        try {
+                            WorkItem item = queue.poll(10, TimeUnit.SECONDS);
+                            if (item == null) {
+                                break;
+                            }
 
-							processAndPersist(item);
+                            processAndPersist(item, runContext);
 
-							int done = completed.incrementAndGet();
-							System.out.printf("Progress: %.2f%% (%d/%d)%n", (100.0 * done) / total, done, total);
+                            int done = completed.incrementAndGet();
+                            log.info("Progress: {:.2f}% ({}/{})", (100.0 * done) / total, done, total);
 
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-					}
-				});
-			}
+                        } catch (Exception e) {
+                            log.error("Pipeline worker failure", e);
+                        }
+                    }
+                });
+            }
 
-			// 🔥 Stage 1: API fetch
-			for (DataFetchEntity data : records) {
-				apiExecutor.submit(() -> {
-					try {
-						fetchWithRetryAndQueue(data, queue);
+            for (DataFetchEntity data : records) {
+                apiExecutor.submit(() -> {
+                    try {
+                        fetchWithRetryAndQueue(data, queue, runContext);
+                    } catch (Exception e) {
+                        log.error("API error for ticker {}", data.getTicker(), e);
+                    }
+                });
+            }
 
-					} catch (Exception e) {
-						System.err.println("API error for " + data.getTicker());
-					}
-				});
-			}
+        } finally {
+            shutdown(apiExecutor);
+            shutdown(processExecutor);
+            running.set(false);
+            log.info("PDV sync finished");
+        }
+    }
 
-		} finally {
-			shutdown(apiExecutor);
-			shutdown(processExecutor);
-			running.set(false);
-			System.out.println("✅ PDV sync finished");
-		}
-	}
+    private void processAndPersist(WorkItem item, PipelineRunContext runContext) {
+        DataFetchEntity data = item.data;
+        JsonNode pdvResponse = item.response;
+        PipelineTickerContext tickerContext = pipelineAuditService.startTickerContext(runContext.getRunId(), data.getTicker());
 
-	// 🔥 Stage 2: CPU + DB work
-	private void processAndPersist(WorkItem item) {
+        long startedAt = System.currentTimeMillis();
+        pipelineAuditService.logStageStart(tickerContext, PipelineAuditStage.PARSE, "Parsing PDV API response");
+        TreeSet<PriceDeliveryVolumeEntity> pdvList = priceDeliveryVolumeService.parseStockData(pdvResponse, data.getTicker(), tickerContext);
+        pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.PARSE, pdvList.size(), null, null,
+                System.currentTimeMillis() - startedAt, "PDV records parsed");
 
-		DataFetchEntity data = item.data;
-		JsonNode pdvResponse = item.response;
+        if (!pdvList.isEmpty()) {
+            Optional<TradeInfo> tradeInfoOpt = Optional.empty();
 
-		TreeSet<PriceDeliveryVolumeEntity> pdvList = priceDeliveryVolumeService.parseStockData(pdvResponse,
-				data.getTicker());
+            try {
+                String tradeInfoUrl = fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
+                JsonNode tradeInfoResponse = fetchNSEAPI.NSEAPICall(tradeInfoUrl);
+                tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(), LocalDate.now(), tickerContext);
+            } catch (Exception e) {
+                pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.TRADEINFO_SAVE,
+                        "Trade info fetch failed", e);
+            }
 
-		if (!pdvList.isEmpty()) {
-			Optional<TradeInfo> tradeInfoOpt = Optional.empty();
+            pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt, pdvResponse, tickerContext);
+        }
 
-			try {
-				String tradeInfoUrl = fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
-				JsonNode tradeInfoResponse = fetchNSEAPI.NSEAPICall(tradeInfoUrl);
-				tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(), LocalDate.now());
-			} catch (Exception e) {
-				System.err.println("Trade info fetch failed for " + data.getTicker() + ": " + e.getMessage());
-			}
+        pipelineAuditService.logTickerSummary(tickerContext, System.currentTimeMillis() - startedAt);
+    }
 
-			pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt, pdvResponse);
-		}
-	}
+    private String calculateToDate(String fromDate) {
+        LocalDate from = LocalDate.parse(fromDate, FORMATTER);
+        LocalDate today = LocalDate.now();
+        return from.plusMonths(3).isBefore(today) ? from.plusMonths(3).format(FORMATTER) : today.format(FORMATTER);
+    }
 
-	private String calculateToDate(String fromDate) {
-		LocalDate from = LocalDate.parse(fromDate, FORMATTER);
-		LocalDate today = LocalDate.now();
-		return from.plusMonths(3).isBefore(today) ? from.plusMonths(3).format(FORMATTER) : today.format(FORMATTER);
-	}
+    private void shutdown(ExecutorService executor) {
+        executor.shutdown();
+        try {
+            executor.awaitTermination(2, TimeUnit.HOURS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
-	private void shutdown(ExecutorService executor) {
-		executor.shutdown();
-		try {
-			executor.awaitTermination(2, TimeUnit.HOURS);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
-	}
+    private static class WorkItem {
+        private final DataFetchEntity data;
+        private final JsonNode response;
 
-	// 🔥 Work item for pipeline
-	private static class WorkItem {
-		DataFetchEntity data;
-		JsonNode response;
+        WorkItem(DataFetchEntity data, JsonNode response) {
+            this.data = data;
+            this.response = response;
+        }
+    }
 
-		WorkItem(DataFetchEntity data, JsonNode response) {
-			this.data = data;
-			this.response = response;
-		}
-	}
+    private void fetchWithRetryAndQueue(DataFetchEntity data, BlockingQueue<WorkItem> queue, PipelineRunContext runContext) {
+        String ticker = data.getTicker();
+        PipelineTickerContext tickerContext = pipelineAuditService.startTickerContext(runContext.getRunId(), ticker);
 
-	private void fetchWithRetryAndQueue(DataFetchEntity data, BlockingQueue<WorkItem> queue) {
+        LocalDate fromDate = data.getPdvtLastDate();
+        LocalDate lastAttemptedToDate = fromDate;
 
-		String ticker = data.getTicker();
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                String from = fromDate.format(FORMATTER);
+                String to = calculateToDate(from);
+                lastAttemptedToDate = LocalDate.parse(to, FORMATTER);
 
-		LocalDate fromDate = data.getPdvtLastDate();
-		LocalDate lastAttemptedToDate = fromDate;
+                long startedAt = System.currentTimeMillis();
+                pipelineAuditService.logStageStart(tickerContext, PipelineAuditStage.API_FETCH, "Fetching PDV API data");
 
-		for (int attempt = 1; attempt <= 3; attempt++) {
-			try {
-				String from = fromDate.format(FORMATTER);
-				String to = calculateToDate(from);
+                JsonNode response = fetchNSEAPI.NSEAPICall(fetchNSEAPI.buildPDVUrl(from, to, ticker));
+                pipelineAuditService.logPayload(ticker, response.toString(), PipelineAuditStage.API_FETCH);
 
-				lastAttemptedToDate = LocalDate.parse(to, FORMATTER);
+                TreeSet<PriceDeliveryVolumeEntity> pdvList = priceDeliveryVolumeService.parseStockData(response, ticker, tickerContext);
+                if (!pdvList.isEmpty()) {
+                    queue.put(new WorkItem(data, response));
+                    pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.API_FETCH, pdvList.size(), from, to,
+                            System.currentTimeMillis() - startedAt, "PDV API records fetched");
+                    return;
+                }
 
-				JsonNode response = fetchNSEAPI.NSEAPICall(fetchNSEAPI.buildPDVUrl(from, to, ticker));
+                log.warn("Retry {} empty for ticker {}", attempt, ticker);
+                pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.API_FETCH,
+                        "No PDV records returned, retrying", new IllegalStateException("empty response"));
+                fromDate = lastAttemptedToDate;
 
-				TreeSet<PriceDeliveryVolumeEntity> pdvList = priceDeliveryVolumeService.parseStockData(response,
-						ticker);
+            } catch (Exception e) {
+                log.error("Retry {} failed for ticker {}", attempt, ticker, e);
+                pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.API_FETCH,
+                        "API fetch failed", e);
+            }
+        }
 
-				// ✅ SUCCESS CASE
-				if (!pdvList.isEmpty()) {
-					queue.put(new WorkItem(data, response));
-					return;
-				}
+        log.warn("No data after retries for ticker {} -> updating DFHT", ticker);
+        updateDfhtAfterFailure(data, lastAttemptedToDate, tickerContext);
+    }
 
-				System.out.println("Retry " + attempt + " empty for " + ticker);
-
-				// 🔁 Move window forward
-				fromDate = lastAttemptedToDate;
-
-			} catch (Exception e) {
-				System.err.println("Retry " + attempt + " failed for " + ticker);
-			}
-		}
-
-		// ❌ AFTER ALL RETRIES FAILED
-		System.out.println("No data after retries for " + ticker + " → updating DFHT");
-
-		updateDfhtAfterFailure(data, lastAttemptedToDate);
-	}
-
-	private void updateDfhtAfterFailure(DataFetchEntity data, LocalDate lastAttemptedToDate) {
-		try {
-			dataFetchHistoryService.updateLastDateForPdvt(data.getTicker(), lastAttemptedToDate); // or update method
-		} catch (Exception e) {
-			System.err.println("Failed to update DFHT for " + data.getTicker());
-		}
-	}
+    private void updateDfhtAfterFailure(DataFetchEntity data, LocalDate lastAttemptedToDate, PipelineTickerContext tickerContext) {
+        try {
+            pipelineAuditService.logStageStart(tickerContext, PipelineAuditStage.DFHT_UPDATE, "Updating DFHT after API failure");
+            dataFetchHistoryService.updateLastDateForPdvt(data.getTicker(), lastAttemptedToDate, tickerContext);
+            pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.DFHT_UPDATE, 1, null, null,
+                    null, "DFHT updated after API failure");
+        } catch (Exception e) {
+            pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.DFHT_UPDATE,
+                    "Failed to update DFHT for ticker", e);
+        }
+    }
 }

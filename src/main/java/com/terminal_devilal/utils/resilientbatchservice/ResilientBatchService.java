@@ -1,94 +1,142 @@
 package com.terminal_devilal.utils.resilientbatchservice;
 
-import org.springframework.scheduling.annotation.Scheduled;
-
-import com.terminal_devilal.utils.deadletterqueue.DeadLetterQueue;
-
+import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/**
- * Base class providing resilient buffered batch saving for any entity type.
- *
- * Strategy: 1. Buffer records in memory as they arrive. 2. Every 2s, flush the
- * buffer via saveAll() — one fast DB transaction. 3. If saveAll() throws, fall
- * back to per-record save() to isolate the bad record. 4. Any record that fails
- * individually goes to the DeadLetterQueue. 5. DLQ is retried every 60s.
- * Permanently failing records are logged with full context.
- *
- * Subclasses implement saveAll() and saveOne() pointing at their repository.
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.utils.deadletterqueue.DeadLetterQueue;
+
+import jakarta.transaction.Transactional;
+
 public abstract class ResilientBatchService<T> {
 
-	private final ConcurrentLinkedQueue<T> buffer = new ConcurrentLinkedQueue<>();
-	protected final DeadLetterQueue<T> dlq = new DeadLetterQueue<>();
+    private static final Logger log = LoggerFactory.getLogger(ResilientBatchService.class);
 
-	protected void enqueue(T record) {
-		buffer.add(record);
-	}
+    private final ConcurrentLinkedQueue<T> buffer = new ConcurrentLinkedQueue<>();
+    protected final DeadLetterQueue<T> dlq = new DeadLetterQueue<>();
+    protected final PipelineAuditService pipelineAuditService;
 
-	@Scheduled(fixedDelay = 2000)
-	public void flushBuffer() {
-		List<T> batch = new ArrayList<>();
-		T item;
-		while ((item = buffer.poll()) != null) {
-			batch.add(item);
-		}
+    protected ResilientBatchService(PipelineAuditService pipelineAuditService) {
+        this.pipelineAuditService = pipelineAuditService;
+    }
 
-		if (batch.isEmpty())
-			return;
+    protected void enqueue(T record) {
+        buffer.add(record);
+    }
 
-		try {
-			// Fast path — single transaction for the whole batch
-			saveAll(batch);
-		} catch (Exception batchEx) {
-			System.err.printf("[BATCH] saveAll failed for %d %s records, falling back to per-record save%n",
-					batch.size(), batch.get(0).getClass().getSimpleName());
+    @Scheduled(fixedDelay = 2000)
+    @Transactional
+    public void flushBuffer() {
+        List<T> batch = new ArrayList<>();
+        T item;
+        while ((item = buffer.poll()) != null) {
+            batch.add(item);
+        }
 
-			// Slow path — each record gets its own transaction so one bad record can't kill
-			// the rest
-			for (T record : batch) {
-				try {
-					saveOne(record);
-				} catch (Exception recordEx) {
-					dlq.add(record, recordEx);
-				}
-			}
-		}
-	}
+        if (batch.isEmpty()) {
+            return;
+        }
 
-	@Scheduled(fixedDelay = 60000)
-	public void retryDeadLetters() {
-		List<DeadLetterQueue.FailedRecord<T>> failed = dlq.drainAll();
-		if (failed.isEmpty())
-			return;
+        try {
+            saveAll(batch);
+        } catch (Exception batchEx) {
+            log.error("Batch save failed for {} records", batch.size(), batchEx);
+            pipelineAuditService.logEvent(null, resolveTicker(batch.get(0)), PipelineAuditStage.BATCH_FLUSH,
+                    "FAILURE", batch.size(), null, null, null, "batch save failed", batchEx.getMessage(),
+                    buildDetails(batch.size(), batchEx, batch.get(0)));
 
-		System.out.printf("[DLQ] Retrying %d failed record(s)%n", failed.size());
+            for (T record : batch) {
+                try {
+                    saveOne(record);
+                } catch (Exception recordEx) {
+                    if (isDuplicateKey(recordEx)) {
+                        log.info("Duplicate record skipped during saveOne fallback: {}", record);
+                        pipelineAuditService.logEvent(null, resolveTicker(record), PipelineAuditStage.BATCH_FLUSH,
+                                "SKIP", 1, null, null, null, "duplicate record skipped", recordEx.getMessage(),
+                                buildDetails(1, recordEx, record));
+                        continue;
+                    }
+                    log.error("Single-record save failed for {}", record, recordEx);
+                    pipelineAuditService.logEvent(null, resolveTicker(record), PipelineAuditStage.BATCH_FLUSH,
+                            "FAILURE", 1, null, null, null, "single-record save failed", recordEx.getMessage(),
+                            buildDetails(1, recordEx, record));
+                    dlq.add(record, recordEx);
+                }
+            }
+        }
+    }
 
-		for (DeadLetterQueue.FailedRecord<T> entry : failed) {
-			try {
-				saveOne(entry.record());
-				System.out.printf("[DLQ] Retry succeeded for record originally failed at %s%n", entry.failedAt());
-			} catch (Exception retryEx) {
-				// Permanently failed — log everything so nothing is lost silently
-				System.err.printf("[DLQ] Permanent failure | record: %s | originally failed at: %s | retry error: %s%n",
-						entry.record(), entry.failedAt(), retryEx.getMessage());
-				// Hook point: plug in your alerting, metrics, or file-based fallback here
-				onPermanentFailure(entry.record(), retryEx);
-			}
-		}
-	}
+    @Scheduled(fixedDelay = 60000)
+    public void retryDeadLetters() {
+        List<DeadLetterQueue.FailedRecord<T>> failed = dlq.drainAll();
+        if (failed.isEmpty()) {
+            return;
+        }
 
-	/**
-	 * Called when a record has failed both the batch save and the DLQ retry.
-	 * Override in subclasses to push to monitoring, write to a file, send an alert,
-	 * etc. Default implementation is a no-op (the error is already logged above).
-	 */
-	protected void onPermanentFailure(T record, Exception e) {
-	}
+        log.warn("Retrying {} failed record(s)", failed.size());
 
-	protected abstract void saveAll(List<T> batch);
+        for (DeadLetterQueue.FailedRecord<T> entry : failed) {
+            try {
+                saveOne(entry.record());
+                log.info("Retry succeeded for record originally failed at {}", entry.failedAt());
+            } catch (Exception retryEx) {
+                log.error("Permanent failure for record {}", entry.record(), retryEx);
+                pipelineAuditService.logEvent(null, resolveTicker(entry.record()), PipelineAuditStage.BATCH_FLUSH,
+                        "FAILURE", 1, null, null, null, "dead-letter retry failed", retryEx.getMessage(),
+                        buildDetails(1, retryEx, entry.record()));
+                onPermanentFailure(entry.record(), retryEx);
+            }
+        }
+    }
 
-	protected abstract void saveOne(T record);
+    protected void onPermanentFailure(T record, Exception e) {
+    }
+
+    protected abstract void saveAll(List<T> batch);
+
+    protected abstract void saveOne(T record);
+
+    private Map<String, Object> buildDetails(int batchSize, Exception error, T record) {
+        Map<String, Object> details = new HashMap<>();
+        details.put("batchSize", batchSize);
+        details.put("entity", record);
+        details.put("timestamp", Instant.now().toString());
+        details.put("stacktrace", error.getStackTrace());
+        return details;
+    }
+
+    private String resolveTicker(T record) {
+        if (record == null) {
+            return null;
+        }
+        try {
+            Method method = record.getClass().getMethod("getTicker");
+            Object value = method.invoke(record);
+            return value == null ? null : value.toString();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean isDuplicateKey(Exception error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains("Duplicate entry")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
 }

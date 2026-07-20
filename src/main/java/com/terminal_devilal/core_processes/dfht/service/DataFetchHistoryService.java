@@ -3,44 +3,46 @@ package com.terminal_devilal.core_processes.dfht.service;
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.repository.DataFetchHistroyRepository;
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
 
 import jakarta.transaction.Transactional;
 
 @Service
 public class DataFetchHistoryService {
 
-	@Autowired
-	private final DataFetchHistroyRepository repository;
+    private final DataFetchHistroyRepository repository;
+    private final PipelineAuditService pipelineAuditService;
 
-	public DataFetchHistoryService(DataFetchHistroyRepository repository) {
-		this.repository = repository;
-	}
+    public DataFetchHistoryService(DataFetchHistroyRepository repository, PipelineAuditService pipelineAuditService) {
+        this.repository = repository;
+        this.pipelineAuditService = pipelineAuditService;
+    }
 
-	public List<DataFetchEntity> getProcessedDatesForTickers() {
-		return repository.findAll();
-	}
+    public List<DataFetchEntity> getProcessedDatesForTickers() {
+        return repository.findAll();
+    }
 
-//	public void updateLastDateForPdvt(String ticker, LocalDate pdvtLastProcessedDate) {
-//		Optional<DataFetchEntity> dataFetchEntity = this.repository.findById(ticker);
-//		if (dataFetchEntity.isPresent()) {
-//			DataFetchEntity updateData = dataFetchEntity.get();
-//			updateData.setPdvtLastDate(pdvtLastProcessedDate);
-//			repository.save(updateData);
-//		}
-//	}
+    public List<String> getAllTickers() {
+        return repository.findAllTickers();
+    }
 
-	public List<String> getAllTickers() {
-		return repository.findAllTickers();
-	}
+    @Transactional
+    public void updateLastDateForPdvt(String ticker, LocalDate date) {
+        updateLastDateForPdvt(ticker, date, null);
+    }
 
-	@Transactional
-	public void updateLastDateForPdvt(String ticker, LocalDate date) {
-		repository.updateLastDate(ticker, date);
-	}
-
+    @Transactional
+    public void updateLastDateForPdvt(String ticker, LocalDate date, PipelineTickerContext tickerContext) {
+        repository.updateLastDate(ticker, date);
+        if (tickerContext != null) {
+            pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.DFHT_UPDATE, 1,
+                    date.toString(), date.toString(), null, "DFHT last date updated");
+        }
+    }
 }

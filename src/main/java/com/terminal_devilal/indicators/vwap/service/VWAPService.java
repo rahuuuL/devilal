@@ -6,9 +6,13 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.vwap.entities.VWAPEntity;
 import com.terminal_devilal.indicators.vwap.entities.projections.VwapProjection;
 import com.terminal_devilal.indicators.vwap.repository.VWAPRepository;
+import com.terminal_devilal.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;
@@ -16,59 +20,70 @@ import jakarta.transaction.Transactional;
 @Service
 public class VWAPService extends ResilientBatchService<VWAPEntity> {
 
-	private final VWAPRepository vWAPRepository;
+    private final VWAPRepository vWAPRepository;
 
-	public VWAPService(VWAPRepository vWAPRepository) {
-		super();
-		this.vWAPRepository = vWAPRepository;
-	}
+    public VWAPService(VWAPRepository vWAPRepository, PipelineAuditService pipelineAuditService) {
+        super(pipelineAuditService);
+        this.vWAPRepository = vWAPRepository;
+    }
 
-	@Transactional
-	public void saveAllVWAP(List<VWAPEntity> vwaps) {
-		this.vWAPRepository.saveAll(vwaps);
-	}
+    @Transactional
+    public void saveAllVWAP(List<VWAPEntity> vwaps) {
+        this.vWAPRepository.saveAll(vwaps);
+    }
 
-	@Transactional
-	public void saveVWAP(VWAPEntity vWAPEntity) {
-		this.vWAPRepository.save(vWAPEntity);
-	}
+    @Transactional
+    public void saveVWAP(VWAPEntity vWAPEntity) {
+        this.vWAPRepository.save(vWAPEntity);
+    }
 
-	public List<VwapProjection> getVwapDataWithinDates(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
-		return vWAPRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
-	}
+    public List<VwapProjection> getVwapDataWithinDates(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
+        return vWAPRepository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
+    }
 
-	public void processVwap(PriceDeliveryVolumeEntity pdv) {
-		// Guard against division by zero if VWAP is missing or zero
-		if (pdv.getVwap() == 0) {
-			System.err.printf("[VWAP] Skipping ticker=%s date=%s — VWAP is zero%n", pdv.getTicker(), pdv.getDate());
-			return;
-		}
+    public void processVwap(PriceDeliveryVolumeEntity pdv, PipelineTickerContext context) {
+        if (pdv.getVwap() == 0) {
+            pipelineAuditService.logEvent(context.getRunId(), pdv.getTicker(), PipelineAuditStage.VWAP_PROCESS,
+                    "SKIP", 0, pdv.getDate().toString(), pdv.getDate().toString(), null, "VWAP is zero", null, null);
+            return;
+        }
 
-		double vwapProximity = (pdv.getClose() - pdv.getVwap()) / pdv.getVwap() * 100;
+        TickerDateId id = new TickerDateId(pdv.getTicker(), pdv.getDate());
+        if (vWAPRepository.existsById(id)) {
+            pipelineAuditService.logEvent(context, PipelineAuditStage.VWAP_PROCESS, "SKIP", 0,
+                    pdv.getDate().toString(), pdv.getDate().toString(), null,
+                    "VWAP already exists for ticker/date", null, null);
+            return;
+        }
 
-		VWAPEntity vWAPEntity = new VWAPEntity(pdv.getTicker(), pdv.getDate(), pdv.getClose(), pdv.getVwap(),
-				vwapProximity);
+        double vwapProximity = (pdv.getClose() - pdv.getVwap()) / pdv.getVwap() * 100;
+        VWAPEntity vWAPEntity = new VWAPEntity(pdv.getTicker(), pdv.getDate(), pdv.getClose(), pdv.getVwap(), vwapProximity);
+        context.getMetrics().incrementVwapProcessed();
+        pipelineAuditService.logStageStart(context, PipelineAuditStage.VWAP_PROCESS, "VWAP processing started");
+        enqueue(vWAPEntity);
+        pipelineAuditService.logStageSuccess(context, PipelineAuditStage.VWAP_PROCESS, 1, pdv.getDate().toString(), pdv.getDate().toString(), null, "VWAP queued");
+    }
 
-		// Hand off to the resilient buffer — actual DB write happens in flushBuffer()
-		enqueue(vWAPEntity);
-	}
+    @Override
+    @Transactional
+    protected void saveAll(List<VWAPEntity> batch) {
+        for (VWAPEntity entity : batch) {
+            vWAPRepository.upsert(entity.getTicker(), entity.getDate(), entity.getClosePrice(), entity.getVwap(),
+                    entity.getVwapProximity());
+        }
+    }
 
-	// ─── ResilientBatchService implementation ─────────────────────────────────
+    @Override
+    @Transactional
+    protected void saveOne(VWAPEntity record) {
+        vWAPRepository.upsert(record.getTicker(), record.getDate(), record.getClosePrice(), record.getVwap(),
+                record.getVwapProximity());
+    }
 
-	@Override
-	protected void saveAll(List<VWAPEntity> batch) {
-		vWAPRepository.saveAll(batch);
-	}
-
-	@Override
-	protected void saveOne(VWAPEntity record) {
-		vWAPRepository.save(record);
-	}
-
-	@Override
-	protected void onPermanentFailure(VWAPEntity record, Exception e) {
-		System.err.printf("[VWAP][PERMANENT_FAILURE] ticker=%s date=%s close=%s vwap=%s error=%s%n", record.getTicker(),
-				record.getDate(), record.getClosePrice(), record.getVwap(), e.getMessage());
-	}
-
+    @Override
+    protected void onPermanentFailure(VWAPEntity record, Exception e) {
+        pipelineAuditService.logEvent(null, record.getTicker(), PipelineAuditStage.VWAP_SAVE,
+                "FAILURE", 1, record.getDate().toString(), record.getDate().toString(), null,
+                "VWAP persistence failed", e.getMessage(), null);
+    }
 }

@@ -24,9 +24,13 @@ public class PriceDeliveryVolumeUtility {
 	}
 
 	public PriceDeliveryVolumeEntity parseStockData(JsonNode node) {
+		return parseStockData(node, node.path("CH_SYMBOL").asText(""));
+	}
+
+	public PriceDeliveryVolumeEntity parseStockData(JsonNode node, String ticker) {
 
 		PriceDeliveryVolumeEntity stock = new PriceDeliveryVolumeEntity();
-		stock.setTicker(node.path("CH_SYMBOL").asText(""));
+		stock.setTicker(ticker == null ? "" : ticker);
 		stock.setDate(parseDate(node.path("mTIMESTAMP").asText("")));
 		stock.setHigh(node.path("CH_TRADE_HIGH_PRICE").asDouble(0.0));
 		stock.setLow(node.path("CH_TRADE_LOW_PRICE").asDouble(0.0));

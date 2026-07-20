@@ -27,8 +27,9 @@ public class KafkaProducerConfig {
 		producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 		producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 
-		// Avro specific
-//		producerProps.put("schema.registry.url", "http://localhost:8081");
+		producerProps.put(ProducerConfig.ACKS_CONFIG, "all");
+		producerProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+		producerProps.put(ProducerConfig.LINGER_MS_CONFIG, 10);
 
 		ProducerFactory<String, String> producerFactory = new DefaultKafkaProducerFactory<>(producerProps);
 		return new KafkaTemplate<String, String>(producerFactory);

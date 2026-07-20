@@ -4,9 +4,11 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
@@ -15,6 +17,20 @@ import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
 
 @Repository
 public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {
+
+	@Modifying
+	@Transactional
+	@Query(value = """
+			INSERT INTO rsi (ticker, date, close_diff, `14_days_rsi`, `21_days_rsi`)
+			VALUES (:ticker, :date, :closeDiff, :rsi14, :rsi21)
+			ON DUPLICATE KEY UPDATE
+				close_diff = VALUES(close_diff),
+				`14_days_rsi` = VALUES(`14_days_rsi`),
+				`21_days_rsi` = VALUES(`21_days_rsi`)
+			""", nativeQuery = true)
+	void upsert(@Param("ticker") String ticker, @Param("date") LocalDate date,
+			@Param("closeDiff") double closeDiff, @Param("rsi14") double rsi14,
+			@Param("rsi21") double rsi21);
 
 	@Query("SELECT s FROM RSIEntity s WHERE s.ticker = :ticker AND s.date <= :date ORDER BY s.date DESC LIMIT 14")
 	List<RSIEntity> findRecent14RSIs(@Param("ticker") String ticker, @Param("date") LocalDate date);

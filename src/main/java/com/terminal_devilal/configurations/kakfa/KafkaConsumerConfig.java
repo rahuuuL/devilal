@@ -53,8 +53,9 @@ public class KafkaConsumerConfig {
 		ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
 
 		factory.setConsumerFactory(consumerFactory);
-
 		factory.setBatchListener(true);
+		factory.getContainerProperties().setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.BATCH);
+		factory.getContainerProperties().setMissingTopicsFatal(false);
 
 		return factory;
 	}
