@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
+import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 
 @Repository
 public interface DataFetchHistroyRepository extends JpaRepository<DataFetchEntity, String> {

@@ -5,11 +5,11 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
+import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.repository.DataFetchHistroyRepository;
-import com.terminal_devilal.pipeline.audit.PipelineAuditService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
-import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineTickerContext;
 
 import jakarta.transaction.Transactional;
 

@@ -7,7 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.heatmap.dto.HeatMapDTO;
-import com.terminal_devilal.business_tools.heatmap.entities.PriceHeatMapProjection;
+import com.terminal_devilal.business_tools.heatmap.entity.PriceHeatMapProjection;
 import com.terminal_devilal.business_tools.heatmap.repository.PriceHeatMapRepository;
 import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.core_processes.sync_data.repository.TickerIndustryInfoRepository;

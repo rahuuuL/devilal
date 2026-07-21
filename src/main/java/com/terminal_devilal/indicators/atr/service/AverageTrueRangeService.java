@@ -4,14 +4,14 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.indicators.atr.entities.AverageTrueRangeEntity;
-import com.terminal_devilal.indicators.atr.entities.projections.TrueRangeProjection;
+import com.terminal_devilal.indicators.atr.entity.AverageTrueRangeEntity;
+import com.terminal_devilal.indicators.atr.entity.projections.TrueRangeProjection;
 import com.terminal_devilal.indicators.atr.repository.AverageTrueRangeRepository;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.pipeline.audit.PipelineAuditService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
-import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineTickerContext;
 import com.terminal_devilal.utils.resilientbatchservice.ResilientBatchService;
 
 import jakarta.transaction.Transactional;

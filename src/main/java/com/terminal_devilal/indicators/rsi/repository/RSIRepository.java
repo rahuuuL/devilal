@@ -11,9 +11,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
-import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
-import com.terminal_devilal.indicators.rsi.entities.projections.RsiPercentileProjection;
-import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
+import com.terminal_devilal.indicators.rsi.entity.RSIEntity;
+import com.terminal_devilal.indicators.rsi.entity.projections.RsiPercentileProjection;
+import com.terminal_devilal.indicators.rsi.entity.projections.RsiProjection;
 
 @Repository
 public interface RSIRepository extends JpaRepository<RSIEntity, TickerDateId> {

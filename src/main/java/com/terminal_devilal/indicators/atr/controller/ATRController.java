@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.indicators.atr.entities.projections.TrueRangeProjection;
+import com.terminal_devilal.indicators.atr.entity.projections.TrueRangeProjection;
 import com.terminal_devilal.indicators.atr.service.AverageTrueRangeService;
 
 @RestController

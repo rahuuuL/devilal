@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
+import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.indicators.price.model.RollingSlopeResult;
 import com.terminal_devilal.utils.common_calcs.PercentileCalculator;

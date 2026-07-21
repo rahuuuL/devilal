@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
+import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.core_processes.sync_data.dto.NseQuoteResponse;
 import com.terminal_devilal.core_processes.sync_data.entity.TickerIndustryInfo;
@@ -43,7 +43,7 @@ public class TickerIndustryInfoUpdate {
 	public void updateCompanyIndustryData() {
 
 		if (!running.compareAndSet(false, true)) {
-			System.out.println("⚠️ Industry sync already running");
+			System.out.println("âš ï¸ Industry sync already running");
 			return;
 		}
 
@@ -52,7 +52,7 @@ public class TickerIndustryInfoUpdate {
 		try {
 			List<DataFetchEntity> records = dataFetchHistoryService.getProcessedDatesForTickers();
 
-			System.out.println("▶ Industry sync started for " + records.size() + " tickers");
+			System.out.println("â–¶ Industry sync started for " + records.size() + " tickers");
 
 			for (DataFetchEntity record : records) {
 				executor.submit(() -> processSingleTicker(record));
@@ -66,7 +66,7 @@ public class TickerIndustryInfoUpdate {
 				Thread.currentThread().interrupt();
 			}
 			running.set(false);
-			System.out.println("✅ Industry sync completed");
+			System.out.println("âœ… Industry sync completed");
 		}
 	}
 
@@ -80,7 +80,7 @@ public class TickerIndustryInfoUpdate {
 			NseQuoteResponse response = fetchNSEAPI.fetchQuote(symbol);
 
 			if (response == null || response.getInfo() == null || response.getIndustryInfo() == null) {
-				System.out.println("⚠️ No industry data for " + symbol);
+				System.out.println("âš ï¸ No industry data for " + symbol);
 				return;
 			}
 
@@ -97,10 +97,10 @@ public class TickerIndustryInfoUpdate {
 
 			repo.save(entity);
 
-			System.out.println("✔ Saved industry data for " + symbol);
+			System.out.println("âœ” Saved industry data for " + symbol);
 
 		} catch (Exception ex) {
-			System.err.println("❌ Failed for " + symbol + " : " + ex.getMessage());
+			System.err.println("âŒ Failed for " + symbol + " : " + ex.getMessage());
 		} finally {
 			apiLimiter.release();
 		}

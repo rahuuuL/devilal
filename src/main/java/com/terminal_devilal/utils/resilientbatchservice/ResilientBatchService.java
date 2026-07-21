@@ -12,8 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.terminal_devilal.pipeline.audit.PipelineAuditService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
 import com.terminal_devilal.utils.deadletterqueue.DeadLetterQueue;
 
 import jakarta.transaction.Transactional;

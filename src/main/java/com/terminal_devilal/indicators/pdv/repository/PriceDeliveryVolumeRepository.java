@@ -9,11 +9,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.entities.StockClosePrice;
-import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
-import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
-import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.StockClosePrice;
+import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
+import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entity.projections.PriceOhlcvProjection;
 
 @Repository
 public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {

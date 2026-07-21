@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.heatmap.dto.VolumeAnalysisDTO;
-import com.terminal_devilal.business_tools.heatmap.entities.VolumeAnalysisProjection;
+import com.terminal_devilal.business_tools.heatmap.entity.VolumeAnalysisProjection;
 import com.terminal_devilal.business_tools.heatmap.repository.VolumeAnalysisRepository;
 import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.core_processes.sync_data.repository.TickerIndustryInfoRepository;

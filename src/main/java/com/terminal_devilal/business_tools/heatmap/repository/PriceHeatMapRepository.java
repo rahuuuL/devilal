@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.terminal_devilal.business_tools.heatmap.entities.PriceHeatMapProjection;
+import com.terminal_devilal.business_tools.heatmap.entity.PriceHeatMapProjection;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 
 @Repository
 public interface PriceHeatMapRepository extends JpaRepository<PriceDeliveryVolumeEntity, TickerDateId> {

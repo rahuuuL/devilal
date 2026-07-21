@@ -7,7 +7,7 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.exception.DateParserException;
 
 @Service

@@ -11,8 +11,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
-import com.terminal_devilal.indicators.vwap.entities.VWAPEntity;
-import com.terminal_devilal.indicators.vwap.entities.projections.VwapProjection;
+import com.terminal_devilal.indicators.vwap.entity.VWAPEntity;
+import com.terminal_devilal.indicators.vwap.entity.projections.VwapProjection;
 
 @Repository
 public interface VWAPRepository extends JpaRepository<VWAPEntity, TickerDateId> {

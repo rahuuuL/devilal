@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.indicators.common_entities.TickerValue;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.enum_.PriceVolumeDeliveryColumn;
 
 import jakarta.persistence.EntityManager;

@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.entities.projections.PriceOhlcvProjection;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.projections.PriceOhlcvProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @RestController

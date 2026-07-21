@@ -11,11 +11,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
+import com.terminal_devilal.business_tools.trade_info.entity.TradeInfo;
 import com.terminal_devilal.business_tools.trade_info.repository.TradeInfoRepository;
-import com.terminal_devilal.pipeline.audit.PipelineAuditService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
-import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineTickerContext;
 
 @Service
 public class TradeInfoService {

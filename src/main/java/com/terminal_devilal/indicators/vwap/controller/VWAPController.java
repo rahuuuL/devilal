@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.indicators.vwap.entities.projections.VwapProjection;
+import com.terminal_devilal.indicators.vwap.entity.projections.VwapProjection;
 import com.terminal_devilal.indicators.vwap.service.VWAPService;
 
 @RestController

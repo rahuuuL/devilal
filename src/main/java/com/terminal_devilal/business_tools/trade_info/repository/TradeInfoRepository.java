@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
+import com.terminal_devilal.business_tools.trade_info.entity.TradeInfo;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 
 public interface TradeInfoRepository extends JpaRepository<TradeInfo, TickerDateId> {

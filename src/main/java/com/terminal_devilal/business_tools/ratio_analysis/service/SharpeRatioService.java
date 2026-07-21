@@ -7,7 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.ratio_analysis.dto.RatioTImeSeries;
-import com.terminal_devilal.indicators.pdv.entities.projections.ClosePriceProjection;
+import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @Service

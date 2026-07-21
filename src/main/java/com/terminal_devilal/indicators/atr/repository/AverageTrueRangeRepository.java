@@ -9,8 +9,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.terminal_devilal.indicators.atr.entities.AverageTrueRangeEntity;
-import com.terminal_devilal.indicators.atr.entities.projections.TrueRangeProjection;
+import com.terminal_devilal.indicators.atr.entity.AverageTrueRangeEntity;
+import com.terminal_devilal.indicators.atr.entity.projections.TrueRangeProjection;
 import com.terminal_devilal.indicators.common_entities.TickerDateId;
 
 @Repository

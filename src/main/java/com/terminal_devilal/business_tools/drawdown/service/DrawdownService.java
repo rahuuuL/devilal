@@ -9,7 +9,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.drawdown.dto.DrawdownDTO;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 @Service

@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.indicators.pdv.entities.projections.ConsistentVolumeProjection;
+import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
 import com.terminal_devilal.indicators.volume.utils.SortedWindow;
@@ -133,7 +133,7 @@ public class ConsistentVolumeDetector {
 			ConsistentVolumeProjection curr = bars.get(i);
 
 			// ======================================================
-			// 1. If regime ended → slide baseline ONLY using normal bars
+			// 1. If regime ended â†’ slide baseline ONLY using normal bars
 			// ======================================================
 			if (volumeRegimeActive && i >= regimeStopPoint) {
 
@@ -174,7 +174,7 @@ public class ConsistentVolumeDetector {
 				largeVol = rvol >= thresold;
 			}
 
-			// ✅ SIMPLE FIX:
+			// âœ… SIMPLE FIX:
 			// Only update RVOL distribution if NOT a spike
 			if (!largeVol) {
 
@@ -211,7 +211,7 @@ public class ConsistentVolumeDetector {
 					consistencyScore++;
 					relativeVolumeSum += rvol;
 				} else {
-					// Non-spike bar → safe volume → store for later baseline slide
+					// Non-spike bar â†’ safe volume â†’ store for later baseline slide
 					normalVolumesDuringRegime.add(curr.getVolume());
 				}
 			}

@@ -18,16 +18,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entities.TradeInfo;
+import com.terminal_devilal.business_tools.trade_info.entity.TradeInfo;
 import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
-import com.terminal_devilal.core_processes.dfht.entities.DataFetchEntity;
+import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
-import com.terminal_devilal.indicators.pdv.entities.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditService;
-import com.terminal_devilal.pipeline.audit.PipelineAuditStage;
-import com.terminal_devilal.pipeline.audit.PipelineRunContext;
-import com.terminal_devilal.pipeline.audit.PipelineTickerContext;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineRunContext;
+import com.terminal_devilal.core_processes.pipeline.audit.PipelineTickerContext;
 import com.terminal_devilal.utils.nse.FetchNSEAPI;
 
 @Service

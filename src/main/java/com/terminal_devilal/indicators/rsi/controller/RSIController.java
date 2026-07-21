@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.terminal_devilal.indicators.rsi.dto.RsiPercentileDTO;
-import com.terminal_devilal.indicators.rsi.entities.RSIEntity;
-import com.terminal_devilal.indicators.rsi.entities.projections.RsiProjection;
+import com.terminal_devilal.indicators.rsi.entity.RSIEntity;
+import com.terminal_devilal.indicators.rsi.entity.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.service.RSIService;
 
 @RestController
