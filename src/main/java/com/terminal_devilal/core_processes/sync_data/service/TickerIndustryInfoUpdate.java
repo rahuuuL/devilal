@@ -78,22 +78,32 @@ public class TickerIndustryInfoUpdate {
 			apiLimiter.acquire();
 
 			NseQuoteResponse response = fetchNSEAPI.fetchQuote(symbol);
-
-			if (response == null || response.getInfo() == null || response.getIndustryInfo() == null) {
+			if (response == null) {
 				System.out.println("âš ï¸ No industry data for " + symbol);
+				return;
+			}
+
+			NseQuoteResponse.EquityResponse firstRecord = response.getFirstEquityResponse();
+			NseQuoteResponse.MetaData metaData = firstRecord == null ? null : firstRecord.getMetaData();
+			NseQuoteResponse.SecInfo secInfo = firstRecord == null ? null : firstRecord.getSecInfo();
+
+			if (metaData == null || secInfo == null) {
+				System.out.println("âš ï¸ No industry data for " + symbol + " | equityResponsePresent="
+						+ (firstRecord != null) + " | metaDataPresent=" + (metaData != null) + " | secInfoPresent="
+						+ (secInfo != null));
 				return;
 			}
 
 			TickerIndustryInfo entity = new TickerIndustryInfo();
 
-			entity.setTicker(response.getInfo().getSymbol());
-			entity.setCompanyName(response.getInfo().getCompanyName());
-			entity.setIsin(response.getInfo().getIsin());
+			entity.setTicker(metaData.getSymbol());
+			entity.setCompanyName(metaData.getCompanyName());
+			entity.setIsin(metaData.getIsinCode());
 
-			entity.setMacro(response.getIndustryInfo().getMacro());
-			entity.setSector(response.getIndustryInfo().getSector());
-			entity.setIndustry(response.getIndustryInfo().getIndustry());
-			entity.setBasicIndustry(response.getIndustryInfo().getBasicIndustry());
+			entity.setMacro(secInfo.getMacro());
+			entity.setSector(secInfo.getSector());
+			entity.setIndustry(secInfo.getIndustry());
+			entity.setBasicIndustry(secInfo.getBasicIndustry());
 
 			repo.save(entity);
 

@@ -31,8 +31,6 @@ public class FetchNSEAPI {
 
 	private final String TRADE_INFO = "https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getSymbolData&marketType=N&series=EQ&symbol=%s";
 
-	private final String TICKER_INFO = "https://www.nseindia.com/api/quote-equity?symbol=%s";
-
 	private final RestTemplate restTemplate = new RestTemplate();
 
 	private static final Logger log = LoggerFactory.getLogger(FetchNSEAPI.class);
@@ -109,7 +107,7 @@ public class FetchNSEAPI {
 
 		HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-		ResponseEntity<NseQuoteResponse> response = restTemplate.exchange(buildTickerInfoUrl(symbol), HttpMethod.GET,
+		ResponseEntity<NseQuoteResponse> response = restTemplate.exchange(buildTradeInfoUrl(symbol), HttpMethod.GET,
 				entity, NseQuoteResponse.class, symbol);
 
 		return response.getBody();
@@ -139,10 +137,4 @@ public class FetchNSEAPI {
 		String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
 		return String.format(TRADE_INFO, encodedSymbol);
 	}
-
-	public String buildTickerInfoUrl(String ticker) {
-		String encodedSymbol = URLEncoder.encode(ticker, StandardCharsets.UTF_8);
-		return String.format(TICKER_INFO, encodedSymbol);
-	}
-
 }
