@@ -36,9 +36,12 @@ public class TradeInfoService {
 
     public Optional<TradeInfo> parseTradeInfo(JsonNode rootNode, String ticker, LocalDate date, PipelineTickerContext tickerContext) {
         try {
-            JsonNode tradeInfoNode = rootNode.path("equityResponse").path("tradeInfo");
+            JsonNode equityArray = rootNode.path("equityResponse");
+            JsonNode firstRecord = equityArray.isArray() && equityArray.size() > 0 ? equityArray.get(0) : null;
+            JsonNode tradeInfoNode = firstRecord == null ? null : firstRecord.path("tradeInfo");
+            JsonNode priceInfoNode = firstRecord == null ? null : firstRecord.path("priceInfo");
 
-            if (tradeInfoNode.isMissingNode() || tradeInfoNode.isNull()) {
+            if (tradeInfoNode == null || tradeInfoNode.isMissingNode() || tradeInfoNode.isNull()) {
                 log.warn("Missing tradeInfo node for ticker {}", ticker);
                 if (tickerContext != null) {
                     pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.TRADEINFO_SAVE,
@@ -51,13 +54,13 @@ public class TradeInfoService {
             tradeInfo.setTicker(ticker);
             tradeInfo.setDate(date);
 
-            tradeInfo.setTotalTradedVolume(getDouble(tradeInfoNode, "totalTradedVolume"));
-            tradeInfo.setTotalTradedValue(getDouble(tradeInfoNode, "totalTradedValue"));
-            tradeInfo.setTotalMarketCap(getDouble(tradeInfoNode, "totalMarketCap"));
-            tradeInfo.setFfmc(getDouble(tradeInfoNode, "ffmc"));
-            tradeInfo.setImpactCost(getDouble(tradeInfoNode, "impactCost"));
-            tradeInfo.setCmDailyVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmDailyVolatility")));
-            tradeInfo.setCmAnnualVolatility(parseDoubleSafe(getString(tradeInfoNode, "cmAnnualVolatility")));
+            tradeInfo.setTotalTradedVolume(getDoubleOrDefault(tradeInfoNode, "totalTradedVolume", 0.0));
+            tradeInfo.setTotalTradedValue(getDoubleOrDefault(tradeInfoNode, "totalTradedValue", 0.0));
+            tradeInfo.setTotalMarketCap(getDoubleOrDefault(tradeInfoNode, "totalMarketCap", 0.0));
+            tradeInfo.setFfmc(getDoubleOrDefault(tradeInfoNode, "ffmc", 0.0));
+            tradeInfo.setImpactCost(getDoubleOrDefault(tradeInfoNode, "impactCost", 0.0));
+            tradeInfo.setCmDailyVolatility(parseDoubleSafe(getStringOrNull(priceInfoNode, "cmDailyVolatility")));
+            tradeInfo.setCmAnnualVolatility(parseDoubleSafe(getStringOrNull(priceInfoNode, "cmAnnualVolatility")));
 
             if (tickerContext != null) {
                 pipelineAuditService.logStageSuccess(tickerContext, PipelineAuditStage.TRADEINFO_SAVE, 1, date.toString(), date.toString(), null, "TradeInfo parsed");
@@ -73,12 +76,15 @@ public class TradeInfoService {
         }
     }
 
-    private static Double getDouble(JsonNode node, String key) {
+    private static double getDoubleOrDefault(JsonNode node, String key, double defaultValue) {
+        if (node == null) {
+            return defaultValue;
+        }
         if (node.has(key) && node.get(key).isNumber()) {
             return node.get(key).asDouble();
         }
         log.warn("Missing or invalid numeric key: {}", key);
-        return null;
+        return defaultValue;
     }
 
     private double parseDoubleSafe(String value) {
@@ -89,7 +95,10 @@ public class TradeInfoService {
         }
     }
 
-    private static String getString(JsonNode node, String key) {
+    private static String getStringOrNull(JsonNode node, String key) {
+        if (node == null) {
+            return null;
+        }
         if (node.has(key)) {
             return node.get(key).asText();
         }

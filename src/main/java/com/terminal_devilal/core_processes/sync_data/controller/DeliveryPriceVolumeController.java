@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.terminal_devilal.core_processes.sync_data.model.DataSyncProcessResponse;
 import com.terminal_devilal.core_processes.sync_data.service.DataSync;
 import com.terminal_devilal.core_processes.sync_data.service.TickerIndustryInfoUpdate;
+import com.terminal_devilal.core_processes.sync_data.service.TickerTradeInfoUpdate;
 
 @RestController
 @RequestMapping("/pdv")
@@ -15,11 +16,14 @@ public class DeliveryPriceVolumeController {
 	private DataSync dataSync;
 
 	private final TickerIndustryInfoUpdate service;
+	private final TickerTradeInfoUpdate tradeInfoService;
 
-	public DeliveryPriceVolumeController(DataSync dataSync, TickerIndustryInfoUpdate service) {
+	public DeliveryPriceVolumeController(DataSync dataSync, TickerIndustryInfoUpdate service,
+			TickerTradeInfoUpdate tradeInfoService) {
 		super();
 		this.dataSync = dataSync;
 		this.service = service;
+		this.tradeInfoService = tradeInfoService;
 	}
 
 	@GetMapping("/revise-data")
@@ -33,5 +37,11 @@ public class DeliveryPriceVolumeController {
 	public ResponseEntity<String> syncCompanyIndustry() {
 		service.updateCompanyIndustryData();
 		return ResponseEntity.ok("NSE company-industry sync started");
+	}
+
+	@GetMapping("/sync/trade-info")
+	public ResponseEntity<String> syncTradeInfo() {
+		tradeInfoService.updateTradeInfoData();
+		return ResponseEntity.ok("NSE trade-info sync started");
 	}
 }

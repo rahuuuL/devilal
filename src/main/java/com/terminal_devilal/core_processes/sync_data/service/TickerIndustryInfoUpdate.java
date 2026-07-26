@@ -21,8 +21,8 @@ import jakarta.transaction.Transactional;
 @Service
 public class TickerIndustryInfoUpdate {
 
-	private static final int THREAD_POOL_SIZE = 10;
-	private static final int MAX_API_CONCURRENCY = 4;
+	private static final int THREAD_POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
+	private static final int MAX_API_CONCURRENCY = Math.max(1, Math.min(THREAD_POOL_SIZE, 8));
 
 	private final FetchNSEAPI fetchNSEAPI;
 	private final TickerIndustryInfoRepository repo;

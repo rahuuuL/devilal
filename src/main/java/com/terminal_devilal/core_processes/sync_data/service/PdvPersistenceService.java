@@ -11,7 +11,6 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.TreeSet;
 
 import org.slf4j.Logger;
@@ -21,8 +20,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entity.TradeInfo;
-import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.configurations.kafka.KafkaProducerService;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
@@ -41,29 +38,24 @@ public class PdvPersistenceService {
 
     private final PriceDeliveryVolumeService priceDeliveryVolumeService;
     private final DataFetchHistoryService dataFetchHistoryService;
-    private final TradeInfoService tradeInfoService;
     private final KafkaProducerService kafkaProducerService;
     private final PipelineAuditService pipelineAuditService;
 
     public PdvPersistenceService(PriceDeliveryVolumeService priceDeliveryVolumeService,
-            DataFetchHistoryService dataFetchHistoryService, TradeInfoService tradeInfoService,
+            DataFetchHistoryService dataFetchHistoryService,
             KafkaProducerService kafkaProducerService, PipelineAuditService pipelineAuditService) {
         this.priceDeliveryVolumeService = priceDeliveryVolumeService;
         this.dataFetchHistoryService = dataFetchHistoryService;
-        this.tradeInfoService = tradeInfoService;
         this.kafkaProducerService = kafkaProducerService;
         this.pipelineAuditService = pipelineAuditService;
     }
 
     @Transactional
-    public void persistAll(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, Optional<TradeInfo> tradeInfo,
+    public void persistAll(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList,
             JsonNode pdvResponse, PipelineTickerContext tickerContext) {
 
         if (!pdvList.isEmpty()) {
             pipelineAuditService.logStageStart(tickerContext, PipelineAuditStage.PDVT_SAVE, "Persisting PDVT records");
-            if (tradeInfo.isPresent()) {
-                tradeInfoService.saveTradeInfo(tradeInfo.get(), tickerContext);
-            }
             priceDeliveryVolumeService.saveAllPdvList(new LinkedList<>(pdvList), tickerContext);
             dataFetchHistoryService.updateLastDateForPdvt(ticker, pdvList.last().getDate(), tickerContext);
             tickerContext.getMetrics().incrementPdvtSaved();

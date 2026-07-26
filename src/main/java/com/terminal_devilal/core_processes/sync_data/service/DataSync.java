@@ -3,7 +3,6 @@ package com.terminal_devilal.core_processes.sync_data.service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -18,8 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.terminal_devilal.business_tools.trade_info.entity.TradeInfo;
-import com.terminal_devilal.business_tools.trade_info.service.TradeInfoService;
 import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
@@ -46,19 +43,17 @@ public class DataSync {
     private final PriceDeliveryVolumeService priceDeliveryVolumeService;
     private final FetchNSEAPI fetchNSEAPI;
     private final PdvPersistenceService pdvPersistenceService;
-    private final TradeInfoService tradeInfoService;
     private final PipelineAuditService pipelineAuditService;
 
     public DataSync(DataFetchHistoryService dataFetchHistoryService,
             PriceDeliveryVolumeService priceDeliveryVolumeService, FetchNSEAPI fetchNSEAPI,
-            PdvPersistenceService pdvPersistenceService, TradeInfoService tradeInfoService,
+            PdvPersistenceService pdvPersistenceService,
             PipelineAuditService pipelineAuditService) {
 
         this.dataFetchHistoryService = dataFetchHistoryService;
         this.priceDeliveryVolumeService = priceDeliveryVolumeService;
         this.fetchNSEAPI = fetchNSEAPI;
         this.pdvPersistenceService = pdvPersistenceService;
-        this.tradeInfoService = tradeInfoService;
         this.pipelineAuditService = pipelineAuditService;
     }
 
@@ -135,18 +130,7 @@ public class DataSync {
                 System.currentTimeMillis() - startedAt, "PDV records parsed");
 
         if (!pdvList.isEmpty()) {
-            Optional<TradeInfo> tradeInfoOpt = Optional.empty();
-
-            try {
-                String tradeInfoUrl = fetchNSEAPI.buildTradeInfoUrl(data.getTicker());
-                JsonNode tradeInfoResponse = fetchNSEAPI.NSEAPICall(tradeInfoUrl);
-                tradeInfoOpt = tradeInfoService.parseTradeInfo(tradeInfoResponse, data.getTicker(), LocalDate.now(), tickerContext);
-            } catch (Exception e) {
-                pipelineAuditService.logStageFailure(tickerContext, PipelineAuditStage.TRADEINFO_SAVE,
-                        "Trade info fetch failed", e);
-            }
-
-            pdvPersistenceService.persistAll(data.getTicker(), pdvList, tradeInfoOpt, pdvResponse, tickerContext);
+            pdvPersistenceService.persistAll(data.getTicker(), pdvList, pdvResponse, tickerContext);
         }
 
         pipelineAuditService.logTickerSummary(tickerContext, System.currentTimeMillis() - startedAt);

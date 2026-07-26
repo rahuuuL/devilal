@@ -26,7 +26,7 @@ import jakarta.persistence.ColumnResult;
 		        t.date AS detailsDate,
 		        COALESCE(t.total_traded_volume, 0) AS totalTradedVolume,
 		        COALESCE(t.total_traded_value, 0) AS totalTradedValue,
-		        COALESCE(t.total_market_cap, 0) AS totalMarketCap,
+		        COALESCE(t.total_market_cap, 0) / 10000000 AS totalMarketCap,
 		        COALESCE(t.ffmc, 0) AS ffmc,
 		    	COALESCE(t.impact_cost, 0) AS impactCost,
 		        COALESCE(t.daily_volatility, 0) AS dailyVolatility,
