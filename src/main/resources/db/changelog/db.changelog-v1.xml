@@ -66,4 +66,14 @@
         <sqlFile path="db/migration/V1_012_industry_details.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-013" author="rahul">
+        <sqlFile path="db/migration/V1_013_mk_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-014" author="rahul">
+        <sqlFile path="db/migration/V1_014_mk_generation_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

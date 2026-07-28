@@ -8,9 +8,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TreeSet;
 
 import org.slf4j.Logger;
@@ -22,11 +24,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.fasterxml.jackson.databind.JsonNode;
 import com.terminal_devilal.configurations.kafka.KafkaProducerService;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
-import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
 import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
 import com.terminal_devilal.core_processes.pipeline.audit.PipelineTickerContext;
+import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
+import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 import jakarta.transaction.Transactional;
 
@@ -67,12 +69,14 @@ public class PdvPersistenceService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                produceKafkaMessage(ticker, pdvResponse, tickerContext);
+                produceKafkaMessage(ticker, pdvList, pdvResponse, tickerContext);
             }
         });
     }
 
-    private void produceKafkaMessage(String ticker, JsonNode node, PipelineTickerContext tickerContext) {
+    private void produceKafkaMessage(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, JsonNode node, PipelineTickerContext tickerContext) {
+        publishMannKendallHistoryEvents(pdvList, tickerContext);
+
         JsonNode dataArray = node.path("data");
         if (!dataArray.isArray()) {
             return;
@@ -85,6 +89,17 @@ public class PdvPersistenceService {
         for (JsonNode item : sorted) {
             kafkaProducerService.sendMessage("pdv-data", ticker, item.toPrettyString(), tickerContext);
         }
+    }
+
+    private void publishMannKendallHistoryEvents(TreeSet<PriceDeliveryVolumeEntity> pdvList,
+            PipelineTickerContext tickerContext) {
+        Set<LocalDate> uniqueDates = pdvList.stream()
+                .filter(pdv -> pdv != null && pdv.getDate() != null)
+                .map(PriceDeliveryVolumeEntity::getDate)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+
+        uniqueDates.forEach(date -> kafkaProducerService.sendMessage("mann-kendall-history", "history-trigger",
+                String.format("{\"date\":\"%s\"}", date), tickerContext));
     }
 
     LocalDate parseTimestamp(String rawValue) {

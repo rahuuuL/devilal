@@ -47,6 +47,11 @@ public class KafkaConsumerConfig {
 	}
 
 	@Bean
+	public NewTopic mannKendallHistoryTopic() {
+		return TopicBuilder.name("mann-kendall-history").partitions(8).replicas(1).build();
+	}
+
+	@Bean
 	public ConcurrentKafkaListenerContainerFactory<String, String> batchFactory(
 			ConsumerFactory<String, String> consumerFactory) {
 

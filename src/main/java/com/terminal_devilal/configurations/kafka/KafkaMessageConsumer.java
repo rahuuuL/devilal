@@ -113,6 +113,9 @@ public class KafkaMessageConsumer {
         } catch (JsonProcessingException e) {
             log.error("Kafka consumer JSON parse error", e);
             return Optional.empty();
+        } catch (RuntimeException e) {
+            log.warn("Kafka consumer skipped malformed payload for ticker={}: {}", ticker, e.getMessage());
+            return Optional.empty();
         }
     }
 }

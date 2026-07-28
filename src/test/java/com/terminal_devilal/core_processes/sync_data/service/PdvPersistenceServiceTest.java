@@ -8,11 +8,11 @@ import org.junit.jupiter.api.Test;
 
 class PdvPersistenceServiceTest {
 
-    @Test
-    void parsesLegacyAndIsoTimestampValues() {
-        PdvPersistenceService service = new PdvPersistenceService(null, null, null, null, null);
+	@Test
+	void parsesLegacyAndIsoTimestampValues() {
+		PdvPersistenceService service = new PdvPersistenceService(null, null, null, null);
 
-        assertEquals(LocalDate.of(2021, 3, 30), service.parseTimestamp("2021-03-30T18:30:00.000Z"));
-        assertEquals(LocalDate.of(2021, 3, 30), service.parseTimestamp("30-Mar-2021"));
-    }
+		assertEquals(LocalDate.of(2021, 3, 30), service.parseTimestamp("2021-03-30T18:30:00.000Z"));
+		assertEquals(LocalDate.of(2021, 3, 30), service.parseTimestamp("30-Mar-2021"));
+	}
 }
