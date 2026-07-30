@@ -34,6 +34,7 @@ public class MannKendallCalculatorImpl implements MannKendallCalculator {
 		boolean h = p < ALPHA;
 		double slope = StatisticsUtils.computeSenSlope(originalValues);
 		double intercept = StatisticsUtils.computeIntercept(StatisticsUtils.medianSorted(sortedValues), slope, size);
+		double score = slope * Math.abs(tau) * (z / (1.0 + Math.abs(z)));
 
 		MannKendallCalcResult result = new MannKendallCalcResult();
 		result.setTrend(StatisticsUtils.determineTrend(h, z));
@@ -45,6 +46,7 @@ public class MannKendallCalculatorImpl implements MannKendallCalculator {
 		result.setVarS(varS);
 		result.setSlope(slope);
 		result.setIntercept(intercept);
+		result.setScore(score);
 		return result;
 	}
 

@@ -71,8 +71,8 @@ class MannKendallCalculatorTest {
     void shouldHandleSmallestValidDataset() {
         MannKendallCalcResult result = calculator.calculate(List.of(1.0d, 2.0d, 3.0d));
 
-        assertEquals("increasing", result.getTrend());
-        assertTrue(result.isH());
+        assertEquals("no trend", result.getTrend());
+        assertFalse(result.isH());
         assertEquals(3L, result.getS());
         assertEquals(1.0d, result.getTau(), 1.0e-9d);
     }

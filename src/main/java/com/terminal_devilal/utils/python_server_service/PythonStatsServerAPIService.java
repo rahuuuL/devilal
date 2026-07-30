@@ -13,7 +13,7 @@
 // import org.springframework.stereotype.Service;
 // import org.springframework.web.client.RestTemplate;
 
-// import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallAPIResponse;
+// import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
 
 // @Service
 // public class PythonStatsServerAPIService {
@@ -28,7 +28,7 @@
 // 		this.manKandellUrl = manKandellUrl;
 // 	}
 
-// 	public List<MannKendallAPIResponse> analyzeBatch(Map<String, List<Double>> tickerPrices) {
+// 	public List<MannKendallResponse> analyzeBatch(Map<String, List<Double>> tickerPrices) {
 // 		Map<String, Object> request = Map.of("data", tickerPrices);
 
 // 		try {

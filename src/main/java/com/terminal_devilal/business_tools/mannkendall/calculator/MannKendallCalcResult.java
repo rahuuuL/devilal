@@ -11,6 +11,7 @@ public class MannKendallCalcResult {
     private double varS;
     private double slope;
     private double intercept;
+    private double score;
 
     public String getTrend() {
         return trend;
@@ -84,9 +85,18 @@ public class MannKendallCalcResult {
         this.intercept = intercept;
     }
 
+    public double getScore() {
+        return score;
+    }
+
+    public void setScore(double score) {
+        this.score = score;
+    }
+
     @Override
     public String toString() {
         return "MannKendallCalcResult [trend=" + trend + ", h=" + h + ", p=" + p + ", z=" + z + ", tau="
-                + tau + ", s=" + s + ", varS=" + varS + ", slope=" + slope + ", intercept=" + intercept + "]";
+                + tau + ", s=" + s + ", varS=" + varS + ", slope=" + slope + ", intercept=" + intercept
+                + ", score=" + score + "]";
     }
 }

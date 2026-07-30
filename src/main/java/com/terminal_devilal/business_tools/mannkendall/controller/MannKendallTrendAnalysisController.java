@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallAPIResponse;
+import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
 import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallHistoryGenerateRequest;
 import com.terminal_devilal.business_tools.mannkendall.dto.MkConfigRequest;
 import com.terminal_devilal.business_tools.mannkendall.dto.MkConfigResponse;
@@ -46,11 +46,11 @@ public class MannKendallTrendAnalysisController {
 	}
 
 	@GetMapping("/log-close/trend")
-	public ResponseEntity<List<MannKendallAPIResponse>> getMannKendallAnalysis(
+	public ResponseEntity<List<MannKendallResponse>> getMannKendallAnalysis(
 			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
-		List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
+		List<MannKendallResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(fromDate,
 				toDate);
 		return ResponseEntity.ok(results);
 	}

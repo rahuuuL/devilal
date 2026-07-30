@@ -9,6 +9,8 @@ public class MannKendallResponse {
 	private Double p;
 	private Double z;
 
+	private String ticker;
+	private Double score;
 	@JsonProperty("Tau")
 	private Double tau;
 
@@ -106,10 +108,27 @@ public class MannKendallResponse {
 		this.intercept = intercept;
 	}
 
+	public String getTicker() {
+		return ticker;
+	}
+
+	public void setTicker(String ticker) {
+		this.ticker = ticker;
+	}
+
+	public Double getScore() {
+		return score;
+	}
+
+	public void setScore(Double score) {
+		this.score = score;
+	}
+
 	@Override
 	public String toString() {
-		return "MannKendallResponse [trend=" + trend + ", h=" + h + ", p=" + p + ", z=" + z + ", tau=" + tau + ", s="
-				+ s + ", var_s=" + var_s + ", slope=" + slope + ", intercept=" + intercept + "]";
+		return "MannKendallResponse [ticker=" + ticker + ", score=" + score + ", trend=" + trend + ", h=" + h + ", p="
+				+ p + ", z=" + z + ", tau=" + tau + ", s=" + s + ", var_s=" + var_s + ", slope=" + slope
+				+ ", intercept=" + intercept + "]";
 	}
 
 }

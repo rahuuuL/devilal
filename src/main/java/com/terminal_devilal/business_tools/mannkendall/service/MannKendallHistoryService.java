@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallAPIResponse;
+import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkConfigEntity;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkGenerationHistoryEntity;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkGenerationHistoryId;
@@ -68,7 +68,7 @@ public class MannKendallHistoryService {
             try {
                 WorkingDayDateRangeUtil.DateRange range = WorkingDayDateRangeUtil.calculateDateRange(processingDate,
                         config.getDays());
-                List<MannKendallAPIResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(
+                List<MannKendallResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(
                         range.getFromDate(), processingDate);
                 List<MkResultHistoryEntity> recordsForWindow = mapToEntities(results, processingDate, config.getDays());
 
@@ -132,10 +132,10 @@ public class MannKendallHistoryService {
         return mkGenerationHistoryRepository.save(entity);
     }
 
-    private List<MkResultHistoryEntity> mapToEntities(List<MannKendallAPIResponse> responses, LocalDate processingDate,
+    private List<MkResultHistoryEntity> mapToEntities(List<MannKendallResponse> responses, LocalDate processingDate,
             Integer days) {
         List<MkResultHistoryEntity> records = new ArrayList<>();
-        for (MannKendallAPIResponse response : responses) {
+        for (MannKendallResponse response : responses) {
             if (response == null || response.getTicker() == null) {
                 continue;
             }
