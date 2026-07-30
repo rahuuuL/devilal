@@ -49,8 +49,7 @@ public class AnalyzeMannKendallForTicker {
 			tickerMap.computeIfAbsent(tv.getTicker(), k -> new ArrayList<>()).add(Math.log(tv.getValue()));
 		}
 
-		List<MannKendallAPIResponse> batchResponse = new ArrayList<>();
-		for (Map.Entry<String, List<Double>> entry : tickerMap.entrySet()) {
+		return tickerMap.entrySet().parallelStream().map(entry -> {
 			try {
 				MannKendallCalcResult result = calculator.calculate(entry.getValue());
 				MannKendallAPIResponse response = new MannKendallAPIResponse();
@@ -68,13 +67,12 @@ public class AnalyzeMannKendallForTicker {
 				double score = result.getSlope() * Math.abs(result.getTau())
 						* (result.getZ() / (1.0 + Math.abs(result.getZ())));
 				response.setScore(score);
-				batchResponse.add(response);
+				return response;
 			} catch (IllegalArgumentException ex) {
 				log.warn("Skipping ticker {} for Mann-Kendall v2 analysis: {}", entry.getKey(), ex.getMessage());
+				return null;
 			}
-		}
-
-		return batchResponse.stream().filter(
+		}).filter(resp -> resp != null).filter(
 				resp -> resp.getP() != null && resp.getZ() != null && resp.getS() != null && resp.getVar_s() != null)
 				.sorted(Comparator.comparing(MannKendallAPIResponse::getScore,
 						Comparator.nullsLast(Comparator.reverseOrder())))
