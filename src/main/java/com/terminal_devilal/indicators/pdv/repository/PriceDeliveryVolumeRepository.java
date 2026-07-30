@@ -30,8 +30,6 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 	List<StockClosePrice> getClosePricesForStocks(@Param("from") LocalDate from,
 			@Param("tickers") List<String> tickers);
 
-	List<PriceDeliveryVolumeEntity> findByTickerAndDateAfterOrderByDateAsc(String ticker, LocalDate fromDate);
-
 	@Query("SELECT DISTINCT p.ticker FROM PriceDeliveryVolumeEntity p")
 	List<String> findDistinctTicker();
 
