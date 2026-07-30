@@ -56,7 +56,8 @@ public class MannKendallTrendAnalysisController {
 	}
 
 	@PostMapping("/history/generate")
-	public ResponseEntity<List<MkResultHistoryEntity>> generateHistory(@RequestBody MannKendallHistoryGenerateRequest request) {
+	public ResponseEntity<List<MkResultHistoryEntity>> generateHistory(
+			@RequestBody MannKendallHistoryGenerateRequest request) {
 		List<MkResultHistoryEntity> results = mannKendallHistoryService.generateHistory(request.getDate());
 		return ResponseEntity.status(HttpStatus.CREATED).body(results);
 	}
@@ -64,8 +65,7 @@ public class MannKendallTrendAnalysisController {
 	@GetMapping("/history")
 	public ResponseEntity<List<MkResultHistoryEntity>> getHistory(
 			@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-			@RequestParam(required = false) Integer days,
-			@RequestParam(required = false) List<String> tickers) {
+			@RequestParam(required = false) Integer days, @RequestParam(required = false) List<String> tickers) {
 		return ResponseEntity.ok(mannKendallHistoryService.getHistory(date, days, tickers));
 	}
 
@@ -78,8 +78,7 @@ public class MannKendallTrendAnalysisController {
 	@PutMapping("/generation-history/status")
 	public ResponseEntity<MkGenerationHistoryEntity> updateGenerationHistoryStatus(
 			@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-			@RequestParam("days") Integer days,
-			@RequestBody MkGenerationHistoryStatusUpdateRequest request) {
+			@RequestParam("days") Integer days, @RequestBody MkGenerationHistoryStatusUpdateRequest request) {
 		return ResponseEntity.ok(mannKendallHistoryService.updateGenerationStatus(date, days, request.getStatus()));
 	}
 
@@ -89,7 +88,8 @@ public class MannKendallTrendAnalysisController {
 	}
 
 	@PutMapping("/config/{days}")
-	public ResponseEntity<MkConfigResponse> updateConfig(@PathVariable Integer days, @RequestBody MkConfigRequest request) {
+	public ResponseEntity<MkConfigResponse> updateConfig(@PathVariable Integer days,
+			@RequestBody MkConfigRequest request) {
 		return ResponseEntity.ok(mkConfigService.update(days, request));
 	}
 
@@ -104,7 +104,8 @@ public class MannKendallTrendAnalysisController {
 	}
 
 	@PatchMapping("/config/{days}/enabled")
-	public ResponseEntity<MkConfigResponse> setConfigEnabled(@PathVariable Integer days, @RequestParam Boolean enabled) {
+	public ResponseEntity<MkConfigResponse> setConfigEnabled(@PathVariable Integer days,
+			@RequestParam Boolean enabled) {
 		return ResponseEntity.ok(mkConfigService.setEnabled(days, enabled));
 	}
 

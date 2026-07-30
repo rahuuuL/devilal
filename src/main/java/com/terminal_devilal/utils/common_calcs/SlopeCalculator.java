@@ -2,6 +2,8 @@ package com.terminal_devilal.utils.common_calcs;
 
 import java.util.Collection;
 
+// OLS slope calculator for a series of y values, where x is the index of the y value in the collection.
+// Helps to determine Price Growth Rate.. How many points per day is price increasing?
 public class SlopeCalculator {
 
 	public static double computeSlope(Collection<Double> y) {
