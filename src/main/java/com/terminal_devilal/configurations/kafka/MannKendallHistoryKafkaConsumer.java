@@ -23,7 +23,7 @@ public class MannKendallHistoryKafkaConsumer {
         this.mannKendallHistoryService = mannKendallHistoryService;
     }
 
-    @KafkaListener(topics = "mann-kendall-history", groupId = "devilal-group", containerFactory = "batchFactory")
+    @KafkaListener(topics = "mann-kendall-history", groupId = "devilal-group", containerFactory = "batchFactory", concurrency = "8")
     public void listen(List<ConsumerRecord<String, String>> records) {
         for (ConsumerRecord<String, String> record : records) {
             try {

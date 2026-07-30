@@ -98,7 +98,7 @@ public class PdvPersistenceService {
                 .map(PriceDeliveryVolumeEntity::getDate)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
-        uniqueDates.forEach(date -> kafkaProducerService.sendMessage("mann-kendall-history", "history-trigger",
+        uniqueDates.forEach(date -> kafkaProducerService.sendMessage("mann-kendall-history", date.toString(),
                 String.format("{\"date\":\"%s\"}", date), tickerContext));
     }
 
