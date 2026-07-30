@@ -78,19 +78,6 @@ services:
     ports:
       - "4200:4200"
 
-  python:
-    build:
-      context: D:/Apps/terminal-devilal/src/main/python
-      dockerfile: Docker.dev
-    container_name: fastapi
-    working_dir: /app
-    volumes:
-      - D:/Apps/terminal-devilal/src/main/python:/app
-      - python_packages:/usr/local/lib/python3.11/site-packages
-    ports:
-      - "8000:8000"
-
 volumes:
   mangilal_node_modules:
-  python_packages:
   gradle_cache:
