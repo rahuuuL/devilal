@@ -33,7 +33,21 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 	@Query("SELECT DISTINCT p.ticker FROM PriceDeliveryVolumeEntity p")
 	List<String> findDistinctTicker();
 
+	@Query("SELECT MAX(p.date) FROM PriceDeliveryVolumeEntity p")
+	LocalDate findMaxDate();
+
+	List<PriceDeliveryVolumeEntity> findByTickerOrderByDateAsc(String ticker);
+
+	List<PriceDeliveryVolumeEntity> findByTickerAndDateBetweenOrderByDateAsc(String ticker, LocalDate fromDate,
+			LocalDate toDate);
+
 	List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate date);
+
+	List<PriceDeliveryVolumeEntity> findByDateGreaterThanOrderByDateAsc(LocalDate date);
+
+	List<PriceDeliveryVolumeEntity> findByDateGreaterThanEqualOrderByTickerAscDateAsc(LocalDate date);
+
+	List<PriceDeliveryVolumeEntity> findByDate(LocalDate date);
 
 	@Query(value = """
 			SELECT p.ticker,

@@ -54,6 +54,7 @@ services:
       - D:/Apps/terminal-devilal/wait-for-it.sh:/wait-for-it.sh
       - gradle_cache:/home/gradle/.gradle
       - D:/docker-data/pipeline-logs:/logs/pipeline
+      - D:/docker-data/pdv-cache:/data/cache
     ports:
       - "8080:8080"
     depends_on:
@@ -65,6 +66,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: av37hvgAv%123
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       PIPELINE_AUDIT_LOG_PATH: /logs/pipeline
+      CACHE_DIRECTORY: /data/cache
+      CACHE_PDV_CHRONICLE_ENABLED: "true"
+      JAVA_TOOL_OPTIONS: --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
 
   angular:
     build:

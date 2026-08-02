@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 @Entity
 @IdClass(TickerDateId.class)
 @Table(name = "pdvt", indexes = { @Index(name = "idx_date", columnList = "date") }) // this creates an index on date
-public class PriceDeliveryVolumeEntity {
+public class PriceDeliveryVolumeEntity implements Comparable<PriceDeliveryVolumeEntity> {
 
 	@Id
 	@Column(name = "ticker")
@@ -189,6 +189,18 @@ public class PriceDeliveryVolumeEntity {
 			return false;
 		PriceDeliveryVolumeEntity other = (PriceDeliveryVolumeEntity) obj;
 		return Objects.equals(date, other.date) && Objects.equals(ticker, other.ticker);
+	}
+
+	@Override
+	public int compareTo(PriceDeliveryVolumeEntity other) {
+		if (other == null) {
+			return 1;
+		}
+		int dateCompare = this.getDate().compareTo(other.getDate());
+		if (dateCompare != 0) {
+			return dateCompare;
+		}
+		return this.getTicker().compareTo(other.getTicker());
 	}
 
 	@Override

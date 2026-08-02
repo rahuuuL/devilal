@@ -9,32 +9,35 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.business_tools.drawdown.dto.DrawdownDTO;
+import com.terminal_devilal.indicators.pdv.cache.PDVCacheService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 @Service
 public class DrawdownService {
 
-	private final PriceDeliveryVolumeRepository priceDeliveryVolumeRepository;
+	private final PDVCacheService pdvCacheService;
 
-	public DrawdownService(PriceDeliveryVolumeRepository priceDeliveryVolumeRepository) {
+	public DrawdownService(PDVCacheService pdvCacheService) {
 		super();
-		this.priceDeliveryVolumeRepository = priceDeliveryVolumeRepository;
+		this.pdvCacheService = pdvCacheService;
 	}
 
 	public List<DrawdownDTO> calculateDrawdowns(String ticker, LocalDate fromDate) {
-		List<PriceDeliveryVolumeEntity> data = priceDeliveryVolumeRepository
+		List<PriceDeliveryVolumeEntity> data = pdvCacheService
 				.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
 		return calculateDrawdowns(data);
 	}
 
 	public Map<String, List<DrawdownDTO>> calculateDrawdownsForAll(LocalDate fromDate) {
-		List<String> tickers = priceDeliveryVolumeRepository.findDistinctTicker();
+		List<String> tickers = pdvCacheService.findDistinctTicker();
 		Map<String, List<DrawdownDTO>> resultMap = new HashMap<>();
 
 		for (String ticker : tickers) {
-			List<PriceDeliveryVolumeEntity> data = priceDeliveryVolumeRepository
+			List<PriceDeliveryVolumeEntity> data = pdvCacheService
 					.findByTickerAndDateGreaterThanEqualOrderByDateAsc(ticker, fromDate);
+			if (data.isEmpty()) {
+				continue;
+			}
 			
 			double firstPrice = data.get(0).getClose();
 			double lastPrice = data.get(data.size() - 1).getClose();

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.terminal_devilal.indicators.pdv.cache.PDVCacheService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entity.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
@@ -29,12 +30,14 @@ public class PriceDeliveryVolumeService {
     private static final Logger log = LoggerFactory.getLogger(PriceDeliveryVolumeService.class);
 
     private final PriceDeliveryVolumeRepository repository;
+    private final PDVCacheService pdvCacheService;
     private final PriceDeliveryVolumeUtility utils;
     private final PipelineAuditService pipelineAuditService;
 
-    public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PriceDeliveryVolumeUtility utils,
-            PipelineAuditService pipelineAuditService) {
+    public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PDVCacheService pdvCacheService,
+            PriceDeliveryVolumeUtility utils, PipelineAuditService pipelineAuditService) {
         this.repository = repository;
+        this.pdvCacheService = pdvCacheService;
         this.utils = utils;
         this.pipelineAuditService = pipelineAuditService;
     }
@@ -57,26 +60,25 @@ public class PriceDeliveryVolumeService {
     }
 
     public List<PriceOhlcvProjection> getAllPdvWithinDate(List<String> tickers, LocalDate fromDate, LocalDate toDate) {
-        return repository.findByTickerInAndDateBetween(tickers, fromDate, toDate);
+        return pdvCacheService.findByTickerInAndDateBetween(tickers, fromDate, toDate);
     }
 
     public List<PriceOhlcvProjection> getLatestRecordForTickers(List<String> tickers) {
-        return repository.findLatestRecordForTickers(tickers);
+        return pdvCacheService.findLatestRecordForTickers(tickers);
     }
 
     public Map<String, List<Double>> getGroupedClosePrices(LocalDate fromDate) {
-        return repository.getClosePrices(fromDate).stream()
+        return pdvCacheService.getClosePrices(fromDate).stream()
                 .collect(Collectors.groupingBy(StockClosePrice::getTicker, Collectors.mapping(StockClosePrice::getClose, Collectors.toList())));
     }
 
     public Map<String, List<Double>> getClosePricesForTickerSince(LocalDate fromDate, List<String> tickers) {
-        return repository.getClosePricesForStocks(fromDate, tickers).stream().collect(Collectors.groupingBy(
+        return pdvCacheService.getClosePricesForStocks(fromDate, tickers).stream().collect(Collectors.groupingBy(
                 StockClosePrice::getTicker, Collectors.mapping(StockClosePrice::getClose, Collectors.toList())));
     }
 
     public Map<String, List<PriceDeliveryVolumeEntity>> getPDVForTickerSince(LocalDate fromDate, List<String> tickers) {
-        return repository.getPDVForTickers(fromDate, tickers).stream()
-                .collect(Collectors.groupingBy(PriceDeliveryVolumeEntity::getTicker));
+        return pdvCacheService.getPDVForTickers(fromDate, tickers);
     }
 
     public TreeSet<PriceDeliveryVolumeEntity> parseStockData(JsonNode node, String ticker) {
@@ -111,14 +113,14 @@ public class PriceDeliveryVolumeService {
 
     public List<ClosePriceProjection> ClosePricesWithBufferInDateRangeForTickers(LocalDate fromDate, LocalDate toDate,
             List<String> tickers, int window) {
-        return repository.getAllCloseBetweenTwoDatesForTickers(tickers, fromDate.minusDays(window * 3), toDate);
+        return pdvCacheService.getAllCloseBetweenTwoDatesForTickers(tickers, fromDate.minusDays(window * 3), toDate);
     }
 
     public List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
-        return repository.getAllVolumesBetweenTwoDates(fromDate, toDate);
+        return pdvCacheService.getAllVolumesBetweenTwoDates(fromDate, toDate);
     }
 
     public List<ClosePriceProjection> getAllClosesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
-        return repository.getAllCloseBetweenTwoDates(fromDate, toDate);
+        return pdvCacheService.getAllCloseBetweenTwoDates(fromDate, toDate);
     }
 }
