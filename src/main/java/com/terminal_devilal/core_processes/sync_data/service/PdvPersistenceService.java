@@ -43,6 +43,8 @@ public class PdvPersistenceService {
     private final KafkaProducerService kafkaProducerService;
     private final PipelineAuditService pipelineAuditService;
 
+    private final boolean MK_SYNC_ENABLED = Boolean.parseBoolean(System.getProperty("sync-mann-kendall.enabled", "true"));
+
     public PdvPersistenceService(PriceDeliveryVolumeService priceDeliveryVolumeService,
             DataFetchHistoryService dataFetchHistoryService,
             KafkaProducerService kafkaProducerService, PipelineAuditService pipelineAuditService) {
@@ -75,7 +77,9 @@ public class PdvPersistenceService {
     }
 
     private void produceKafkaMessage(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, JsonNode node, PipelineTickerContext tickerContext) {
-        publishMannKendallHistoryEvents(pdvList, tickerContext);
+        if (MK_SYNC_ENABLED) {
+            publishMannKendallHistoryEvents(pdvList, tickerContext);
+        }
 
         JsonNode dataArray = node.path("data");
         if (!dataArray.isArray()) {
