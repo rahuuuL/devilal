@@ -26,11 +26,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entity.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.entity.projections.PriceOhlcvProjection;
+import com.terminal_devilal.indicators.pdv.enum_.PriceVolumeDeliveryColumn;
+import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeJdbcRepository;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 
 import jakarta.annotation.PostConstruct;
@@ -42,6 +45,7 @@ public class InMemoryPDVCacheService implements PDVCacheService {
     private static final Logger log = LoggerFactory.getLogger(InMemoryPDVCacheService.class);
 
     private final PriceDeliveryVolumeRepository repository;
+    private final PriceDeliveryVolumeJdbcRepository jdbcRepository;
     private final PDVCacheProperties cacheProperties;
 
     private final ConcurrentHashMap<String, ArrayList<PriceDeliveryVolumeEntity>> cache = new ConcurrentHashMap<>();
@@ -58,8 +62,10 @@ public class InMemoryPDVCacheService implements PDVCacheService {
     private volatile boolean cacheReady;
     private volatile boolean chronicleRuntimeAvailable = true;
 
-    public InMemoryPDVCacheService(PriceDeliveryVolumeRepository repository, PDVCacheProperties cacheProperties) {
+    public InMemoryPDVCacheService(PriceDeliveryVolumeRepository repository,
+            PriceDeliveryVolumeJdbcRepository jdbcRepository, PDVCacheProperties cacheProperties) {
         this.repository = repository;
+        this.jdbcRepository = jdbcRepository;
         this.cacheProperties = cacheProperties;
     }
 
@@ -239,6 +245,65 @@ public class InMemoryPDVCacheService implements PDVCacheService {
     public List<StockClosePrice> getClosePricesForStocks(LocalDate fromDate, List<String> tickers) {
         dbFallbackCount.incrementAndGet();
         return repository.getClosePricesForStocks(fromDate, tickers);
+    }
+
+    @Override
+    public List<TickerValue> getTickerValues(LocalDate fromDate, LocalDate toDate, String columnName) {
+        if (!cacheProperties.isEnabled()) {
+            dbFallbackCount.incrementAndGet();
+            return jdbcRepository.fetchTickerValuesByColumn(fromDate, toDate, columnName);
+        }
+
+        List<TickerValue> result = new ArrayList<>();
+        for (Map.Entry<String, ArrayList<PriceDeliveryVolumeEntity>> entry : cache.entrySet()) {
+            ArrayList<PriceDeliveryVolumeEntity> list = entry.getValue();
+            synchronized (list) {
+                int start = PDVCacheUtils.lowerBound(list, fromDate);
+                int end = PDVCacheUtils.upperBound(list, toDate);
+                if (start > end || start >= list.size() || end < 0) {
+                    continue;
+                }
+                for (int i = start; i <= end; i++) {
+                    PriceDeliveryVolumeEntity row = list.get(i);
+                    result.add(new TickerValue(row.getTicker(), row.getDate(), extractColumnValue(row, columnName)));
+                }
+            }
+        }
+        result.sort(Comparator.comparing(TickerValue::getTicker).thenComparing(TickerValue::getDate));
+        return result;
+    }
+
+    @Override
+    public List<TickerValue> getTickerValues(LocalDate fromDate, LocalDate toDate, String columnName,
+            List<String> tickers) {
+        if (!cacheProperties.isEnabled()) {
+            dbFallbackCount.incrementAndGet();
+            return jdbcRepository.fetchTickerValuesByColumn(fromDate, toDate, columnName, tickers);
+        }
+
+        List<TickerValue> result = new ArrayList<>();
+        for (String ticker : tickers) {
+            List<PriceDeliveryVolumeEntity> rows = findByTickerAndDateBetweenOrderByDateAsc(ticker, fromDate, toDate);
+            for (PriceDeliveryVolumeEntity row : rows) {
+                result.add(new TickerValue(row.getTicker(), row.getDate(), extractColumnValue(row, columnName)));
+            }
+        }
+        result.sort(Comparator.comparing(TickerValue::getTicker).thenComparing(TickerValue::getDate));
+        return result;
+    }
+
+    @Override
+    public List<TickerValue> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate, String inputColumnName) {
+        String columnName = resolveColumnName(inputColumnName);
+        return getTickerValues(fromDate, toDate, columnName);
+    }
+
+    @Override
+    public Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate,
+            String inputColumnName, List<String> tickers) {
+        String columnName = resolveColumnName(inputColumnName);
+        return getTickerValues(fromDate, toDate, columnName, tickers).stream().collect(Collectors.groupingBy(
+                TickerValue::getTicker, Collectors.mapping(TickerValue::getValue, Collectors.toList())));
     }
 
     @Override
@@ -558,6 +623,34 @@ public class InMemoryPDVCacheService implements PDVCacheService {
 
     private String buildChronicleKey(PriceDeliveryVolumeEntity row) {
         return row.getTicker() + "|" + row.getDate();
+    }
+
+    private double extractColumnValue(PriceDeliveryVolumeEntity row, String columnName) {
+        if (row == null || columnName == null) {
+            return 0.0d;
+        }
+
+        return switch (columnName.toLowerCase()) {
+            case "close" -> row.getClose();
+            case "high" -> row.getHigh();
+            case "low" -> row.getLow();
+            case "volume" -> row.getVolume();
+            default -> throw new IllegalArgumentException("Invalid column name: " + columnName);
+        };
+    }
+
+    private String resolveColumnName(String inputColumnName) {
+        if (inputColumnName == null || inputColumnName.isBlank()) {
+            throw new IllegalArgumentException("Invalid column name: " + inputColumnName);
+        }
+
+        for (PriceVolumeDeliveryColumn column : PriceVolumeDeliveryColumn.values()) {
+            if (column.getColumnName().equalsIgnoreCase(inputColumnName)) {
+                return column.getColumnName();
+            }
+        }
+
+        throw new IllegalArgumentException("Invalid column name: " + inputColumnName);
     }
 
     private byte[] serialize(PriceDeliveryVolumeEntity row) throws IOException {

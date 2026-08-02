@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entity.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
@@ -27,9 +28,18 @@ public interface PDVCacheService {
 
     List<PriceOhlcvProjection> findByTickerInAndDateBetween(List<String> tickers, LocalDate fromDate, LocalDate toDate);
 
-        List<StockClosePrice> getClosePrices(LocalDate fromDate);
+    List<StockClosePrice> getClosePrices(LocalDate fromDate);
 
-        List<StockClosePrice> getClosePricesForStocks(LocalDate fromDate, List<String> tickers);
+    List<StockClosePrice> getClosePricesForStocks(LocalDate fromDate, List<String> tickers);
+
+    List<TickerValue> getTickerValues(LocalDate fromDate, LocalDate toDate, String columnName);
+
+    List<TickerValue> getTickerValues(LocalDate fromDate, LocalDate toDate, String columnName, List<String> tickers);
+
+    List<TickerValue> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate, String inputColumnName);
+
+    Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate, String inputColumnName,
+            List<String> tickers);
 
     List<PriceOhlcvProjection> findLatestRecordForTickers(List<String> tickers);
 

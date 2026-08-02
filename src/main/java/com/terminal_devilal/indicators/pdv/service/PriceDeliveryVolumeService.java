@@ -13,12 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.cache.PDVCacheService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 import com.terminal_devilal.indicators.pdv.entity.StockClosePrice;
 import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.entity.projections.PriceOhlcvProjection;
+import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeJdbcRepository;
 import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepository;
 import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditService;
 import com.terminal_devilal.core_processes.pipeline.audit.PipelineAuditStage;
@@ -31,13 +33,16 @@ public class PriceDeliveryVolumeService {
 
     private final PriceDeliveryVolumeRepository repository;
     private final PDVCacheService pdvCacheService;
+    private final PriceDeliveryVolumeJdbcRepository jdbcRepository;
     private final PriceDeliveryVolumeUtility utils;
     private final PipelineAuditService pipelineAuditService;
 
     public PriceDeliveryVolumeService(PriceDeliveryVolumeRepository repository, PDVCacheService pdvCacheService,
-            PriceDeliveryVolumeUtility utils, PipelineAuditService pipelineAuditService) {
+            PriceDeliveryVolumeJdbcRepository jdbcRepository, PriceDeliveryVolumeUtility utils,
+            PipelineAuditService pipelineAuditService) {
         this.repository = repository;
         this.pdvCacheService = pdvCacheService;
+        this.jdbcRepository = jdbcRepository;
         this.utils = utils;
         this.pipelineAuditService = pipelineAuditService;
     }
@@ -122,5 +127,29 @@ public class PriceDeliveryVolumeService {
 
     public List<ClosePriceProjection> getAllClosesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
         return pdvCacheService.getAllCloseBetweenTwoDates(fromDate, toDate);
+    }
+
+    public List<TickerValue> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate, String inputColumnName) {
+        List<TickerValue> fromCache = pdvCacheService.fetchTickerValuesByColumn(fromDate, toDate, inputColumnName);
+        if (!fromCache.isEmpty()) {
+            return fromCache;
+        }
+        return jdbcRepository.fetchTickerValuesByColumn(fromDate, toDate, inputColumnName);
+    }
+
+    public List<TickerValue> getTickerValues(LocalDate fromDate, LocalDate toDate, String columnName,
+            List<String> tickers) {
+        List<TickerValue> fromCache = pdvCacheService.getTickerValues(fromDate, toDate, columnName, tickers);
+        if (!fromCache.isEmpty()) {
+            return fromCache;
+        }
+        return jdbcRepository.fetchTickerValuesByColumn(fromDate, toDate, columnName, tickers);
+    }
+
+    public Map<String, List<Double>> fetchTickerValuesByColumn(LocalDate fromDate, LocalDate toDate,
+            String inputColumnName, List<String> tickers) {
+        List<TickerValue> values = getTickerValues(fromDate, toDate, inputColumnName, tickers);
+        return values.stream().collect(Collectors.groupingBy(TickerValue::getTicker,
+                Collectors.mapping(TickerValue::getValue, Collectors.toList())));
     }
 }

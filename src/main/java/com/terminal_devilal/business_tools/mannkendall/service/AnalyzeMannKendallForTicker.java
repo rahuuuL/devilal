@@ -16,25 +16,26 @@ import com.terminal_devilal.business_tools.mannkendall.calculator.MannKendallCal
 import com.terminal_devilal.business_tools.mannkendall.calculator.MannKendallCalculatorImpl;
 import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
 import com.terminal_devilal.indicators.common_entities.TickerValue;
-import com.terminal_devilal.indicators.pdv.repository.PriceDeliveryVolumeRepositoryCustomImpl;
+import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @Service
 public class AnalyzeMannKendallForTicker {
 
-	private final PriceDeliveryVolumeRepositoryCustomImpl customImpl;
+	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
 	private final MannKendallCalculator calculator;
 	private static final Logger log = LoggerFactory.getLogger(AnalyzeMannKendallForTicker.class);
 	long start = 0;
 
-	public AnalyzeMannKendallForTicker(PriceDeliveryVolumeRepositoryCustomImpl customImpl) {
+	public AnalyzeMannKendallForTicker(PriceDeliveryVolumeService priceDeliveryVolumeService) {
 		super();
-		this.customImpl = customImpl;
+		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
 		this.calculator = new MannKendallCalculatorImpl();
 	}
 
 	public List<MannKendallResponse> getMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate) {
 		start = System.currentTimeMillis();
-		List<TickerValue> groupedClosePrices = customImpl.fetchTickerValuesByColumn(fromDate, toDate, "close");
+		List<TickerValue> groupedClosePrices = priceDeliveryVolumeService.fetchTickerValuesByColumn(fromDate, toDate,
+				"close");
 		log.info("Data fetch Time = {} ms", System.currentTimeMillis() - start);
 
 		return analysisProcessWithCalculator(groupedClosePrices);
