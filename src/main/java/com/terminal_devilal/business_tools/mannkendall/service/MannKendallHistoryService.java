@@ -62,24 +62,41 @@ public class MannKendallHistoryService {
                 .filter(config -> !successfulDays.contains(config.getDays()))
                 .collect(Collectors.toList());
 
-        List<MkResultHistoryEntity> generatedEntities = new ArrayList<>();
+        List<MkResultHistoryEntity> allRecords = new ArrayList<>();
 
         for (MkConfigEntity config : configsToProcess) {
 
             try {
                 WorkingDayDateRangeUtil.DateRange range = WorkingDayDateRangeUtil.calculateDateRange(processingDate,
                         config.getDays());
+
+                long start = System.currentTimeMillis();
                 List<MannKendallResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(
                         range.getFromDate(), processingDate);
+                log.info(
+    "Days={} Results={} Time={}ms",
+    config.getDays(),
+    results.size(),
+    System.currentTimeMillis() - start
+);
+
+                start = System.currentTimeMillis();
                 List<MkResultHistoryEntity> recordsForWindow = mapToEntities(results, processingDate, config.getDays());
+                log.info(
+    "Days={} ObjectMappingTime={}ms",
+    config.getDays(),
+    System.currentTimeMillis() - start
+);
 
-                // Re-run safety: remove already persisted data for this date+window before inserting.
-                mkResultHistoryRepository.deleteByDateAndDays(processingDate, config.getDays());
-                if (!recordsForWindow.isEmpty()) {
-                    mkResultHistoryRepository.saveAll(recordsForWindow);
-                }
+                start = System.currentTimeMillis();
+                allRecords.addAll(recordsForWindow);
+                log.info(
+    "Days={} CollectRows={} Time={}ms",
+    config.getDays(),
+    recordsForWindow.size(),
+    System.currentTimeMillis() - start
+);
 
-                generatedEntities.addAll(recordsForWindow);
                 upsertGenerationHistory(processingDate, config.getDays(), MkGenerationStatus.SUCESS, null);
             } catch (Exception e) {
                 log.warn("MK history generation failed for days {}", config.getDays(), e);
@@ -87,7 +104,13 @@ public class MannKendallHistoryService {
             }
         }
 
-        return toResponses(generatedEntities);
+        if (!allRecords.isEmpty()) {
+            long start = System.currentTimeMillis();
+            mkResultHistoryRepository.upsertBatch(allRecords);
+            log.info("UPSERT rows={} time={}ms", allRecords.size(), System.currentTimeMillis() - start);
+        }
+
+        return toResponses(allRecords);
     }
 
     public List<MkResultHistoryResponse> getHistory(LocalDate date, Integer days, List<String> tickers) {
