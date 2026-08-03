@@ -23,8 +23,8 @@ import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallHistoryGen
 import com.terminal_devilal.business_tools.mannkendall.dto.MkConfigRequest;
 import com.terminal_devilal.business_tools.mannkendall.dto.MkConfigResponse;
 import com.terminal_devilal.business_tools.mannkendall.dto.MkGenerationHistoryStatusUpdateRequest;
+import com.terminal_devilal.business_tools.mannkendall.dto.MkResultHistoryResponse;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkGenerationHistoryEntity;
-import com.terminal_devilal.business_tools.mannkendall.entity.MkResultHistoryEntity;
 import com.terminal_devilal.business_tools.mannkendall.service.AnalyzeMannKendallForTicker;
 import com.terminal_devilal.business_tools.mannkendall.service.MannKendallHistoryService;
 import com.terminal_devilal.business_tools.mannkendall.service.MkConfigService;
@@ -56,14 +56,14 @@ public class MannKendallTrendAnalysisController {
 	}
 
 	@PostMapping("/history/generate")
-	public ResponseEntity<List<MkResultHistoryEntity>> generateHistory(
+	public ResponseEntity<List<MkResultHistoryResponse>> generateHistory(
 			@RequestBody MannKendallHistoryGenerateRequest request) {
-		List<MkResultHistoryEntity> results = mannKendallHistoryService.generateHistory(request.getDate());
+		List<MkResultHistoryResponse> results = mannKendallHistoryService.generateHistory(request.getDate());
 		return ResponseEntity.status(HttpStatus.CREATED).body(results);
 	}
 
 	@GetMapping("/history")
-	public ResponseEntity<List<MkResultHistoryEntity>> getHistory(
+	public ResponseEntity<List<MkResultHistoryResponse>> getHistory(
 			@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
 			@RequestParam(required = false) Integer days, @RequestParam(required = false) List<String> tickers) {
 		return ResponseEntity.ok(mannKendallHistoryService.getHistory(date, days, tickers));

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
+import com.terminal_devilal.business_tools.mannkendall.dto.MkResultHistoryResponse;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkConfigEntity;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkGenerationHistoryEntity;
 import com.terminal_devilal.business_tools.mannkendall.entity.MkGenerationHistoryId;
@@ -44,7 +45,7 @@ public class MannKendallHistoryService {
     }
 
     @Transactional
-    public List<MkResultHistoryEntity> generateHistory(LocalDate processingDate) {
+    public List<MkResultHistoryResponse> generateHistory(LocalDate processingDate) {
         if (processingDate == null) {
             throw new IllegalArgumentException("processingDate must not be null");
         }
@@ -61,7 +62,7 @@ public class MannKendallHistoryService {
                 .filter(config -> !successfulDays.contains(config.getDays()))
                 .collect(Collectors.toList());
 
-        List<MkResultHistoryEntity> generatedRecords = new ArrayList<>();
+        List<MkResultHistoryEntity> generatedEntities = new ArrayList<>();
 
         for (MkConfigEntity config : configsToProcess) {
 
@@ -78,7 +79,7 @@ public class MannKendallHistoryService {
                     mkResultHistoryRepository.saveAll(recordsForWindow);
                 }
 
-                generatedRecords.addAll(recordsForWindow);
+                generatedEntities.addAll(recordsForWindow);
                 upsertGenerationHistory(processingDate, config.getDays(), MkGenerationStatus.SUCESS, null);
             } catch (Exception e) {
                 log.warn("MK history generation failed for days {}", config.getDays(), e);
@@ -86,20 +87,30 @@ public class MannKendallHistoryService {
             }
         }
 
-        return generatedRecords;
+        return toResponses(generatedEntities);
     }
 
-    public List<MkResultHistoryEntity> getHistory(LocalDate date, Integer days, List<String> tickers) {
+    public List<MkResultHistoryResponse> getHistory(LocalDate date, Integer days, List<String> tickers) {
         if (date == null) {
             throw new IllegalArgumentException("date must not be null");
         }
-        if (tickers == null || tickers.isEmpty()) {
-            return mkResultHistoryRepository.findHistory(date, days, null);
+        Set<String> normalizedTickers = normalizeTickers(tickers);
+        boolean hasTickers = !normalizedTickers.isEmpty();
+        boolean hasDays = days != null && days > 0;
+
+        if (!hasDays && !hasTickers) {
+            return toResponses(fetchByDateOnly(date));
         }
 
-        Set<String> normalizedTickers = tickers.stream().filter(Objects::nonNull).map(String::trim).filter(s -> !s.isBlank())
-                .collect(Collectors.toSet());
-        return mkResultHistoryRepository.findHistory(date, days, normalizedTickers.isEmpty() ? null : normalizedTickers);
+        if (hasDays && !hasTickers) {
+            return toResponses(fetchByDateAndDays(date, days));
+        }
+
+        if (!hasDays) {
+            return toResponses(fetchByDateAndTickers(date, normalizedTickers));
+        }
+
+        return toResponses(fetchByDateDaysAndTickers(date, days, normalizedTickers));
     }
 
     public List<MkGenerationHistoryEntity> getGenerationHistory(LocalDate date) {
@@ -156,6 +167,55 @@ public class MannKendallHistoryService {
             records.add(entity);
         }
         return records;
+    }
+
+    private Set<String> normalizeTickers(List<String> tickers) {
+        if (tickers == null || tickers.isEmpty()) {
+            return Set.of();
+        }
+        return tickers.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toSet());
+    }
+
+    private List<MkResultHistoryEntity> fetchByDateOnly(LocalDate date) {
+        return mkResultHistoryRepository.findByDate(date);
+    }
+
+    private List<MkResultHistoryEntity> fetchByDateAndDays(LocalDate date, Integer days) {
+        return mkResultHistoryRepository.findByDateAndDays(date, days);
+    }
+
+    private List<MkResultHistoryEntity> fetchByDateAndTickers(LocalDate date, Set<String> tickers) {
+        return mkResultHistoryRepository.findByDateAndTickerIn(date, tickers);
+    }
+
+    private List<MkResultHistoryEntity> fetchByDateDaysAndTickers(LocalDate date, Integer days, Set<String> tickers) {
+        return mkResultHistoryRepository.findByDateAndDaysAndTickerIn(date, days, tickers);
+    }
+
+    private List<MkResultHistoryResponse> toResponses(List<MkResultHistoryEntity> entities) {
+        return entities.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    private MkResultHistoryResponse toResponse(MkResultHistoryEntity entity) {
+        MkResultHistoryResponse response = new MkResultHistoryResponse();
+        response.setTicker(entity.getTicker());
+        response.setDate(entity.getDate());
+        response.setDays(entity.getDays());
+        response.setScore(entity.getScore());
+        response.setTrend(entity.getTrend());
+        response.setH(entity.getH());
+        response.setP(entity.getP());
+        response.setZ(entity.getZ());
+        response.setTau(entity.getTau());
+        response.setS(entity.getS());
+        response.setVar_s(entity.getVar_s());
+        response.setSlope(entity.getSlope());
+        response.setIntercept(entity.getIntercept());
+        return response;
     }
 
     private void upsertGenerationHistory(LocalDate date, Integer days, MkGenerationStatus status, String errorMessage) {
