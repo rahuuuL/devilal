@@ -4,15 +4,17 @@ import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.business_tools.mannkendall.entity.MkResultHistoryEntity;
 
+import io.micrometer.core.annotation.Timed;
+
 @Repository
 public class MkResultHistoryCustomRepositoryImpl implements MkResultHistoryCustomRepository {
 
-    private static final int UPSERT_CHUNK_SIZE = 1000;
     private static final String UPSERT_PREFIX_SQL = "INSERT INTO mk_result_history (" +
         "ticker, date, days, score, trend, h, p, z, tau, s, var_s, slope, intercept" +
         ") VALUES ";
@@ -31,19 +33,26 @@ public class MkResultHistoryCustomRepositoryImpl implements MkResultHistoryCusto
     private static final String VALUE_TUPLE = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private final JdbcTemplate jdbcTemplate;
+    private final int upsertChunkSize;
 
-    public MkResultHistoryCustomRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public MkResultHistoryCustomRepositoryImpl(JdbcTemplate jdbcTemplate,
+            @Value("${mk.history.upsert.chunk-size:1000}") int upsertChunkSize) {
         this.jdbcTemplate = jdbcTemplate;
+        this.upsertChunkSize = Math.max(1, upsertChunkSize);
     }
 
     @Override
+    @Timed(
+        value = "mk.history.upsert",
+        description = "MK history upsert"
+    )
     public void upsertBatch(List<MkResultHistoryEntity> entities) {
         if (entities == null || entities.isEmpty()) {
             return;
         }
 
-        for (int start = 0; start < entities.size(); start += UPSERT_CHUNK_SIZE) {
-            int end = Math.min(start + UPSERT_CHUNK_SIZE, entities.size());
+        for (int start = 0; start < entities.size(); start += upsertChunkSize) {
+            int end = Math.min(start + upsertChunkSize, entities.size());
             upsertChunk(entities.subList(start, end));
         }
     }

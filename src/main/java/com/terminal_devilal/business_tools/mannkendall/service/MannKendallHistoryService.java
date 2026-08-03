@@ -2,7 +2,9 @@ package com.terminal_devilal.business_tools.mannkendall.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -23,6 +25,8 @@ import com.terminal_devilal.business_tools.mannkendall.repository.MkConfigReposi
 import com.terminal_devilal.business_tools.mannkendall.repository.MkGenerationHistoryRepository;
 import com.terminal_devilal.business_tools.mannkendall.repository.MkResultHistoryRepository;
 import com.terminal_devilal.utils.WorkingDayDateRangeUtil;
+
+import io.micrometer.core.annotation.Timed;
 
 @Service
 public class MannKendallHistoryService {
@@ -45,6 +49,10 @@ public class MannKendallHistoryService {
     }
 
     @Transactional
+    @Timed(
+        value = "mk.history.generate",
+        description = "MK history generation"
+    )
     public List<MkResultHistoryResponse> generateHistory(LocalDate processingDate) {
         if (processingDate == null) {
             throw new IllegalArgumentException("processingDate must not be null");
@@ -64,50 +72,37 @@ public class MannKendallHistoryService {
 
         List<MkResultHistoryEntity> allRecords = new ArrayList<>();
 
+        List<Integer> daysToProcess = configsToProcess.stream().map(MkConfigEntity::getDays).collect(Collectors.toList());
+        AnalyzeMannKendallForTicker.WindowAnalysisBatchResult batchResult = analyzeMannKendallForTicker
+                .getMannKendallTrendAnalysisByDays(processingDate, daysToProcess);
+        Map<Integer, List<MannKendallResponse>> resultsByDays = batchResult.getResultsByDays();
+        Map<Integer, String> errorsByDays = batchResult.getErrorsByDays();
+
         for (MkConfigEntity config : configsToProcess) {
+            Integer days = config.getDays();
+
+            String analysisError = errorsByDays.get(days);
+            if (analysisError != null) {
+                upsertGenerationHistory(processingDate, days, MkGenerationStatus.FAILED, analysisError);
+                continue;
+            }
 
             try {
-                WorkingDayDateRangeUtil.DateRange range = WorkingDayDateRangeUtil.calculateDateRange(processingDate,
-                        config.getDays());
+                List<MannKendallResponse> results = resultsByDays.getOrDefault(days, Collections.emptyList());
 
-                long start = System.currentTimeMillis();
-                List<MannKendallResponse> results = analyzeMannKendallForTicker.getMannKendallTrendAnalysis(
-                        range.getFromDate(), processingDate);
-                log.info(
-    "Days={} Results={} Time={}ms",
-    config.getDays(),
-    results.size(),
-    System.currentTimeMillis() - start
-);
+                List<MkResultHistoryEntity> recordsForWindow = mapToEntities(results, processingDate, days);
 
-                start = System.currentTimeMillis();
-                List<MkResultHistoryEntity> recordsForWindow = mapToEntities(results, processingDate, config.getDays());
-                log.info(
-    "Days={} ObjectMappingTime={}ms",
-    config.getDays(),
-    System.currentTimeMillis() - start
-);
-
-                start = System.currentTimeMillis();
                 allRecords.addAll(recordsForWindow);
-                log.info(
-    "Days={} CollectRows={} Time={}ms",
-    config.getDays(),
-    recordsForWindow.size(),
-    System.currentTimeMillis() - start
-);
 
-                upsertGenerationHistory(processingDate, config.getDays(), MkGenerationStatus.SUCESS, null);
+                upsertGenerationHistory(processingDate, days, MkGenerationStatus.SUCESS, null);
             } catch (Exception e) {
-                log.warn("MK history generation failed for days {}", config.getDays(), e);
-                upsertGenerationHistory(processingDate, config.getDays(), MkGenerationStatus.FAILED, safeErrorMessage(e));
+                log.warn("MK history generation failed for days {}", days, e);
+                upsertGenerationHistory(processingDate, days, MkGenerationStatus.FAILED, safeErrorMessage(e));
             }
         }
 
         if (!allRecords.isEmpty()) {
-            long start = System.currentTimeMillis();
             mkResultHistoryRepository.upsertBatch(allRecords);
-            log.info("UPSERT rows={} time={}ms", allRecords.size(), System.currentTimeMillis() - start);
         }
 
         return toResponses(allRecords);
