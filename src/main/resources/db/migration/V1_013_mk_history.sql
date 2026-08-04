@@ -20,3 +20,5 @@ CREATE TABLE IF NOT EXISTS mk_result_history (
     intercept DOUBLE,
     PRIMARY KEY (ticker, date, days)
 );
+-- Alternate Index 
+CREATE INDEX idx_date_days_ticker ON mk_result_history(date, days, ticker);

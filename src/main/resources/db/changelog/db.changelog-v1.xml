@@ -68,17 +68,22 @@
     </changeSet>
 
     <changeSet id="V1-013" author="rahul">
+    
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists
+                        tableName="mk_result_history"
+                        indexName="idx_date_days_ticker"/>
+            </not>
+        </preConditions>
+    
         <sqlFile path="db/migration/V1_013_mk_history.sql"
                  relativeToChangelogFile="false"/>
+    
     </changeSet>
 
     <changeSet id="V1-014" author="rahul">
         <sqlFile path="db/migration/V1_014_mk_generation_history.sql"
-                 relativeToChangelogFile="false"/>
-    </changeSet>
-
-    <changeSet id="V1-015" author="rahul">
-        <sqlFile path="db/migration/V1_015_mk_result_history_index.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
 </databaseChangeLog>
