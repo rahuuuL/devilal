@@ -17,6 +17,7 @@ import java.util.TreeSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -43,15 +44,17 @@ public class PdvPersistenceService {
     private final KafkaProducerService kafkaProducerService;
     private final PipelineAuditService pipelineAuditService;
 
-    private final boolean MK_SYNC_ENABLED = Boolean.parseBoolean(System.getProperty("sync-mann-kendall.enabled", "true"));
+    private final boolean mkSyncEnabled;
 
     public PdvPersistenceService(PriceDeliveryVolumeService priceDeliveryVolumeService,
             DataFetchHistoryService dataFetchHistoryService,
-            KafkaProducerService kafkaProducerService, PipelineAuditService pipelineAuditService) {
+            KafkaProducerService kafkaProducerService, PipelineAuditService pipelineAuditService,
+            @Value("${sync-mann-kendall.enabled:true}") boolean mkSyncEnabled) {
         this.priceDeliveryVolumeService = priceDeliveryVolumeService;
         this.dataFetchHistoryService = dataFetchHistoryService;
         this.kafkaProducerService = kafkaProducerService;
         this.pipelineAuditService = pipelineAuditService;
+        this.mkSyncEnabled = mkSyncEnabled;
     }
 
     @Transactional
@@ -77,7 +80,7 @@ public class PdvPersistenceService {
     }
 
     private void produceKafkaMessage(String ticker, TreeSet<PriceDeliveryVolumeEntity> pdvList, JsonNode node, PipelineTickerContext tickerContext) {
-        if (MK_SYNC_ENABLED) {
+        if (mkSyncEnabled) {
             publishMannKendallHistoryEvents(pdvList, tickerContext);
         }
 
