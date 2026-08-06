@@ -44,7 +44,7 @@ public class RollingSlopeCalculator {
 				window.clear();
 			}
 
-			window.addLast(point.getClose());
+			window.addLast(Math.log(point.getClose()));
 
 			if (window.size() == windowSize) {
 
