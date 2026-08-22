@@ -108,27 +108,35 @@ public class MannKendallHistoryService {
         return toResponses(allRecords);
     }
 
-    public List<MkResultHistoryResponse> getHistory(LocalDate date, Integer days, List<String> tickers) {
-        if (date == null) {
-            throw new IllegalArgumentException("date must not be null");
+    public List<MkResultHistoryResponse> getHistory(LocalDate fromDate, LocalDate toDate, Integer days,
+            List<String> tickers) {
+        if (fromDate == null) {
+            throw new IllegalArgumentException("fromDate must not be null");
         }
+        if (toDate == null) {
+            throw new IllegalArgumentException("toDate must not be null");
+        }
+        if (toDate.isBefore(fromDate)) {
+            throw new IllegalArgumentException("toDate must not be before fromDate");
+        }
+
         Set<String> normalizedTickers = normalizeTickers(tickers);
         boolean hasTickers = !normalizedTickers.isEmpty();
         boolean hasDays = days != null && days > 0;
 
         if (!hasDays && !hasTickers) {
-            return toResponses(fetchByDateOnly(date));
+            return toResponses(fetchByDateRange(fromDate, toDate));
         }
 
         if (hasDays && !hasTickers) {
-            return toResponses(fetchByDateAndDays(date, days));
+            return toResponses(fetchByDateRangeAndDays(fromDate, toDate, days));
         }
 
         if (!hasDays) {
-            return toResponses(fetchByDateAndTickers(date, normalizedTickers));
+            return toResponses(fetchByDateRangeAndTickers(fromDate, toDate, normalizedTickers));
         }
 
-        return toResponses(fetchByDateDaysAndTickers(date, days, normalizedTickers));
+        return toResponses(fetchByDateRangeDaysAndTickers(fromDate, toDate, days, normalizedTickers));
     }
 
     public List<MkGenerationHistoryEntity> getGenerationHistory(LocalDate date) {
@@ -198,20 +206,23 @@ public class MannKendallHistoryService {
                 .collect(Collectors.toSet());
     }
 
-    private List<MkResultHistoryEntity> fetchByDateOnly(LocalDate date) {
-        return mkResultHistoryRepository.findByDate(date);
+    private List<MkResultHistoryEntity> fetchByDateRange(LocalDate fromDate, LocalDate toDate) {
+        return mkResultHistoryRepository.findByDateBetweenOrderByDateDesc(fromDate, toDate);
     }
 
-    private List<MkResultHistoryEntity> fetchByDateAndDays(LocalDate date, Integer days) {
-        return mkResultHistoryRepository.findByDateAndDays(date, days);
+    private List<MkResultHistoryEntity> fetchByDateRangeAndDays(LocalDate fromDate, LocalDate toDate, Integer days) {
+        return mkResultHistoryRepository.findByDateBetweenAndDaysOrderByDateDesc(fromDate, toDate, days);
     }
 
-    private List<MkResultHistoryEntity> fetchByDateAndTickers(LocalDate date, Set<String> tickers) {
-        return mkResultHistoryRepository.findByDateAndTickerIn(date, tickers);
+    private List<MkResultHistoryEntity> fetchByDateRangeAndTickers(LocalDate fromDate, LocalDate toDate,
+            Set<String> tickers) {
+        return mkResultHistoryRepository.findByDateBetweenAndTickerInOrderByDateDesc(fromDate, toDate, tickers);
     }
 
-    private List<MkResultHistoryEntity> fetchByDateDaysAndTickers(LocalDate date, Integer days, Set<String> tickers) {
-        return mkResultHistoryRepository.findByDateAndDaysAndTickerIn(date, days, tickers);
+    private List<MkResultHistoryEntity> fetchByDateRangeDaysAndTickers(LocalDate fromDate, LocalDate toDate,
+            Integer days, Set<String> tickers) {
+        return mkResultHistoryRepository.findByDateBetweenAndDaysAndTickerInOrderByDateDesc(fromDate, toDate, days,
+                tickers);
     }
 
     private List<MkResultHistoryResponse> toResponses(List<MkResultHistoryEntity> entities) {

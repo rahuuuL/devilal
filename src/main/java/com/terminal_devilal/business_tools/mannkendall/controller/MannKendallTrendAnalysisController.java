@@ -64,9 +64,10 @@ public class MannKendallTrendAnalysisController {
 
 	@GetMapping("/history")
 	public ResponseEntity<List<MkResultHistoryResponse>> getHistory(
-			@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
 			@RequestParam(required = false) Integer days, @RequestParam(required = false) List<String> tickers) {
-		return ResponseEntity.ok(mannKendallHistoryService.getHistory(date, days, tickers));
+		return ResponseEntity.ok(mannKendallHistoryService.getHistory(fromDate, toDate, days, tickers));
 	}
 
 	@GetMapping("/generation-history")

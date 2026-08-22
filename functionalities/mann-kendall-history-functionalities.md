@@ -118,7 +118,10 @@ All APIs are under:
       "date": "2026-07-26"
     }
     ```
-- GET `/history?date=YYYY-MM-DD[&days=20][&tickers=RELIANCE,TCS]`
+- GET `/history?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD[&days=20][&tickers=RELIANCE,TCS]`
+  - Returns rows for the inclusive `[fromDate, toDate]` range.
+  - `toDate` must not be before `fromDate`.
+  - Results are sorted by `date` descending (ordered at the DB query level via `findByDateBetween...OrderByDateDesc` repository methods, no in-memory sorting).
 
 ### C) Generation History Monitoring APIs
 - GET `/generation-history?date=YYYY-MM-DD`
@@ -191,3 +194,15 @@ All APIs are under:
 4. Keep generation status enum-limited to SUCESS and FAILED.
 5. `mk_config` identity changed to `days` (no separate id).
 6. Publish MK generation trigger per unique PDV date to `mann-kendall-history` topic.
+
+## Changelog
+
+### GET `/history` — date range + DB-level sorting
+- Changed `getHistory` to accept `fromDate`/`toDate` instead of a single `date`, fetching all rows within that inclusive range.
+- `MannKendallHistoryService.getHistory(LocalDate fromDate, LocalDate toDate, Integer days, List<String> tickers)` validates both dates are non-null and `toDate` is not before `fromDate`.
+- Added range-based repository methods on `MkResultHistoryRepository`, each ordered by date descending directly by Spring Data derived queries (no in-memory sorting):
+  - `findByDateBetweenOrderByDateDesc`
+  - `findByDateBetweenAndDaysOrderByDateDesc`
+  - `findByDateBetweenAndTickerInOrderByDateDesc`
+  - `findByDateBetweenAndDaysAndTickerInOrderByDateDesc`
+- Controller endpoint `MannKendallTrendAnalysisController#getHistory` now requires `fromDate` and `toDate` request params (both `ISO.DATE`), keeping `days` and `tickers` optional as before.

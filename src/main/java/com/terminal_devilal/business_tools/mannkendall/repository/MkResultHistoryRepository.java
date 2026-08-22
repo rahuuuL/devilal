@@ -21,4 +21,15 @@ public interface MkResultHistoryRepository extends JpaRepository<MkResultHistory
         List<MkResultHistoryEntity> findByDateAndDaysAndTickerIn(LocalDate date, Integer days, Set<String> tickers);
 
         List<MkResultHistoryEntity> findByDateAndTickerIn(LocalDate date, Set<String> tickers);
+
+        List<MkResultHistoryEntity> findByDateBetweenOrderByDateDesc(LocalDate fromDate, LocalDate toDate);
+
+        List<MkResultHistoryEntity> findByDateBetweenAndDaysOrderByDateDesc(LocalDate fromDate, LocalDate toDate,
+                        Integer days);
+
+        List<MkResultHistoryEntity> findByDateBetweenAndDaysAndTickerInOrderByDateDesc(LocalDate fromDate,
+                        LocalDate toDate, Integer days, Set<String> tickers);
+
+        List<MkResultHistoryEntity> findByDateBetweenAndTickerInOrderByDateDesc(LocalDate fromDate, LocalDate toDate,
+                        Set<String> tickers);
 }
