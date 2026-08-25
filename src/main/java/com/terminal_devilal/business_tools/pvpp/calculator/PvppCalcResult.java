@@ -4,18 +4,12 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.terminal_devilal.business_tools.pvpp.entity.PvppDailyEntity;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppResultHistoryEntity;
 
 public class PvppCalcResult {
 
-    private final List<PvppDailyEntity> dailyRows = new ArrayList<>();
     private final List<PvppResultHistoryEntity> historyRows = new ArrayList<>();
     private final List<String> skippedTickers = new ArrayList<>();
-
-    public void addDailyRow(PvppDailyEntity row) {
-        dailyRows.add(row);
-    }
 
     public void addHistoryRow(PvppResultHistoryEntity row) {
         historyRows.add(row);
@@ -27,10 +21,6 @@ public class PvppCalcResult {
         }
     }
 
-    public List<PvppDailyEntity> getDailyRows() {
-        return dailyRows;
-    }
-
     public List<PvppResultHistoryEntity> getHistoryRows() {
         return historyRows;
     }
@@ -40,13 +30,8 @@ public class PvppCalcResult {
     }
 
     public void clear() {
-        dailyRows.clear();
         historyRows.clear();
         skippedTickers.clear();
-    }
-
-    public boolean hasDailyRows() {
-        return !dailyRows.isEmpty();
     }
 
     public boolean hasHistoryRows() {
@@ -62,7 +47,6 @@ public class PvppCalcResult {
         private Long volume;
         private Double rvol;
         private Double efficiency;
-        private Double logRvol;
 
         public PvppRow() {
         }
@@ -129,14 +113,6 @@ public class PvppCalcResult {
 
         public void setEfficiency(Double efficiency) {
             this.efficiency = efficiency;
-        }
-
-        public Double getLogRvol() {
-            return logRvol;
-        }
-
-        public void setLogRvol(Double logRvol) {
-            this.logRvol = logRvol;
         }
     }
 }

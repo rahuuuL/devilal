@@ -9,7 +9,6 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.terminal_devilal.business_tools.pvpp.entity.PvppDailyEntity;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppResultHistoryEntity;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 
@@ -83,17 +82,6 @@ public class PvppCalculatorImpl implements PvppCalculator {
                 continue;
             }
 
-            PvppDailyEntity dailyEntity = new PvppDailyEntity();
-            dailyEntity.setTicker(ticker);
-            dailyEntity.setDate(current.getDate());
-            dailyEntity.setReturnPct(row.getReturnPct());
-            dailyEntity.setVolume(current.getVolume());
-            dailyEntity.setClv(row.getClv());
-            dailyEntity.setCenteredClv(row.getCenteredClv());
-            dailyEntity.setReturnZ(null);
-            dailyEntity.setClvZ(null);
-            result.addDailyRow(dailyEntity);
-
             for (Integer days : enabledDays) {
                 if (days == null || days <= 0) {
                     continue;
@@ -111,10 +99,12 @@ public class PvppCalculatorImpl implements PvppCalculator {
                 historyEntity.setTicker(ticker);
                 historyEntity.setDate(current.getDate());
                 historyEntity.setDays(days);
+                historyEntity.setReturnPct(row.getReturnPct());
+                historyEntity.setVolume(current.getVolume());
+                historyEntity.setClv(row.getClv());
+                historyEntity.setCenteredClv(row.getCenteredClv());
                 historyEntity.setRvol(rvol);
                 historyEntity.setEfficiency(calculateEfficiency(row.getReturnPct(), rvol));
-                historyEntity.setLogRvolZ(null);
-                historyEntity.setPressureScore(null);
                 result.addHistoryRow(historyEntity);
             }
         }

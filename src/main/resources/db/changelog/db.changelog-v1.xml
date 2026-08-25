@@ -101,4 +101,9 @@
         <sqlFile path="db/migration/V1_016_pvpp_generation_history.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-017" author="devilal">
+        <sqlFile path="db/migration/V1_017_pvpp_consolidate_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

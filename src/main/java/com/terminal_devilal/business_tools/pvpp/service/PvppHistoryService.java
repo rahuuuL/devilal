@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -26,19 +25,16 @@ import com.terminal_devilal.business_tools.pvpp.calculator.PvppCalcResult;
 import com.terminal_devilal.business_tools.pvpp.calculator.PvppCalculator;
 import com.terminal_devilal.business_tools.pvpp.dto.PvppResultHistoryResponse;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppConfigEntity;
-import com.terminal_devilal.business_tools.pvpp.entity.PvppDailyEntity;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationHistoryEntity;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationHistoryId;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationStatus;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppResultHistoryEntity;
 import com.terminal_devilal.business_tools.pvpp.repository.PvppConfigRepository;
-import com.terminal_devilal.business_tools.pvpp.repository.PvppDailyRepository;
 import com.terminal_devilal.business_tools.pvpp.repository.PvppGenerationHistoryRepository;
 import com.terminal_devilal.business_tools.pvpp.repository.PvppResultHistoryCustomRepository;
 import com.terminal_devilal.business_tools.pvpp.repository.PvppResultHistoryRepository;
 import com.terminal_devilal.indicators.pdv.cache.PDVCacheService;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
-import com.terminal_devilal.utils.common_calcs.StatisticsUtils;
 
 import io.micrometer.core.annotation.Timed;
 
@@ -50,7 +46,6 @@ public class PvppHistoryService {
     private final PvppConfigRepository pvppConfigRepository;
     private final PvppGenerationHistoryRepository pvppGenerationHistoryRepository;
     private final PvppResultHistoryRepository pvppResultHistoryRepository;
-    private final PvppDailyRepository pvppDailyRepository;
     private final PvppResultHistoryCustomRepository pvppResultHistoryCustomRepository;
     private final PvppCalculator pvppCalculator;
     private final PDVCacheService pdvCacheService;
@@ -58,14 +53,12 @@ public class PvppHistoryService {
     public PvppHistoryService(PvppConfigRepository pvppConfigRepository,
             PvppGenerationHistoryRepository pvppGenerationHistoryRepository,
             PvppResultHistoryRepository pvppResultHistoryRepository,
-            PvppDailyRepository pvppDailyRepository,
             PvppResultHistoryCustomRepository pvppResultHistoryCustomRepository,
             PvppCalculator pvppCalculator,
             PDVCacheService pdvCacheService) {
         this.pvppConfigRepository = pvppConfigRepository;
         this.pvppGenerationHistoryRepository = pvppGenerationHistoryRepository;
         this.pvppResultHistoryRepository = pvppResultHistoryRepository;
-        this.pvppDailyRepository = pvppDailyRepository;
         this.pvppResultHistoryCustomRepository = pvppResultHistoryCustomRepository;
         this.pvppCalculator = pvppCalculator;
         this.pdvCacheService = pdvCacheService;
@@ -150,7 +143,6 @@ public class PvppHistoryService {
             tStep = logElapsed("series fetch for " + tickerSeries.size() + " tickers", processingDate, tStep);
 
             // -------- Compute PVPP windows per ticker in parallel --------
-            Queue<PvppDailyEntity> dailyQueue = new ConcurrentLinkedQueue<>();
             Queue<PvppResultHistoryEntity> historyQueue = new ConcurrentLinkedQueue<>();
 
             List<CompletableFuture<Void>> computeFutures = new ArrayList<>();
@@ -163,9 +155,6 @@ public class PvppHistoryService {
                         // generated on their own run and re-emitting them each day was the main cause of bloat.
                         PvppCalcResult calcResult = pvppCalculator.computeForDate(ticker, series, daysToProcess,
                                 processingDate);
-                        if (calcResult.hasDailyRows()) {
-                            dailyQueue.addAll(calcResult.getDailyRows());
-                        }
                         if (calcResult.hasHistoryRows()) {
                             historyQueue.addAll(calcResult.getHistoryRows());
                         }
@@ -183,22 +172,11 @@ public class PvppHistoryService {
             }
             CompletableFuture.allOf(computeFutures.toArray(new CompletableFuture[0])).join();
 
-            List<PvppDailyEntity> dailyRows = new ArrayList<>(dailyQueue);
             List<PvppResultHistoryEntity> historyRows = new ArrayList<>(historyQueue);
             Map<Integer, String> skippedByDay = new HashMap<>();
             skippedTickersByDay.forEach((days, set) -> skippedByDay.put(days, String.join(",", set)));
 
             tStep = logElapsed("PVPP window computation for " + tickerSeries.size() + " tickers", processingDate, tStep);
-
-            normalizeDailyZScores(dailyRows, processingDate);
-            normalizeHistoryLogRvolZ(historyRows);
-
-            tStep = logElapsed("z-score normalization", processingDate, tStep);
-
-            if (!dailyRows.isEmpty()) {
-                pvppResultHistoryCustomRepository.upsertDailyBatch(dailyRows);
-            }
-            tStep = logElapsed("daily rows batch upsert (" + dailyRows.size() + " rows)", processingDate, tStep);
 
             if (!historyRows.isEmpty()) {
                 pvppResultHistoryCustomRepository.upsertHistoryBatch(historyRows);
@@ -273,18 +251,9 @@ public class PvppHistoryService {
                     fromDate, toDate, days, normalizedTickers);
         }
 
-        Map<String, Map<LocalDate, PvppDailyEntity>> dailyByTickerDate = new HashMap<>();
-        List<PvppDailyEntity> dailyRows = pvppDailyRepository.findByDateBetweenOrderByDateDesc(fromDate, toDate);
-        for (PvppDailyEntity daily : dailyRows) {
-            dailyByTickerDate.computeIfAbsent(daily.getTicker(), k -> new HashMap<>()).put(daily.getDate(), daily);
-        }
-
         List<PvppResultHistoryResponse> responses = new ArrayList<>();
         for (PvppResultHistoryEntity entity : entities) {
-            PvppDailyEntity daily = Optional.ofNullable(dailyByTickerDate.get(entity.getTicker()))
-                    .map(map -> map.get(entity.getDate()))
-                    .orElse(null);
-            responses.add(toResponse(entity, daily));
+            responses.add(toResponse(entity));
         }
         return responses;
     }
@@ -341,78 +310,17 @@ public class PvppHistoryService {
         pvppGenerationHistoryRepository.save(history);
     }
 
-    private void normalizeDailyZScores(List<PvppDailyEntity> dailyRows, LocalDate processingDate) {
-        if (dailyRows == null || dailyRows.isEmpty()) {
-            return;
-        }
-
-        Map<String, Double> returnValues = dailyRows.stream()
-                .filter(row -> row.getReturnPct() != null)
-                .collect(Collectors.toMap(PvppDailyEntity::getTicker, PvppDailyEntity::getReturnPct, (a, b) -> a));
-        Map<String, Double> clvValues = dailyRows.stream()
-                .filter(row -> row.getClv() != null)
-                .collect(Collectors.toMap(PvppDailyEntity::getTicker, PvppDailyEntity::getClv, (a, b) -> a));
-
-        Map<String, Double> returnZMap = StatisticsUtils.zScoreMap(returnValues);
-        Map<String, Double> clvZMap = StatisticsUtils.zScoreMap(clvValues);
-
-        for (PvppDailyEntity row : dailyRows) {
-            if (row.getDate() != null && row.getTicker() != null) {
-                row.setReturnZ(returnZMap.getOrDefault(row.getTicker(), 0.0d));
-                row.setClvZ(clvZMap.getOrDefault(row.getTicker(), 0.0d));
-            }
-        }
-    }
-
-    private void normalizeHistoryLogRvolZ(List<PvppResultHistoryEntity> historyRows) {
-        if (historyRows == null || historyRows.isEmpty()) {
-            return;
-        }
-
-        Map<Integer, List<PvppResultHistoryEntity>> rowsByDays = historyRows.stream()
-                .filter(row -> row != null && row.getDays() != null && row.getRvol() != null && row.getRvol() > 0.0d)
-                .collect(Collectors.groupingBy(PvppResultHistoryEntity::getDays));
-
-        for (Map.Entry<Integer, List<PvppResultHistoryEntity>> entry : rowsByDays.entrySet()) {
-            List<Double> logRvolValues = entry.getValue().stream()
-                    .map(PvppResultHistoryEntity::getRvol)
-                    .map(Math::log)
-                    .collect(Collectors.toList());
-
-            if (logRvolValues.isEmpty()) {
-                continue;
-            }
-
-            double mean = StatisticsUtils.mean(logRvolValues.stream().mapToDouble(Double::doubleValue).toArray());
-            double stdDev = StatisticsUtils.stdDev(logRvolValues.stream().mapToDouble(Double::doubleValue).toArray(), mean);
-
-            for (PvppResultHistoryEntity line : entry.getValue()) {
-                line.setLogRvolZ(StatisticsUtils.zScore(Math.log(line.getRvol()), mean, stdDev));
-            }
-        }
-    }
-
     private PvppResultHistoryResponse toResponse(PvppResultHistoryEntity entity) {
-        return toResponse(entity, null);
-    }
-
-    private PvppResultHistoryResponse toResponse(PvppResultHistoryEntity entity, PvppDailyEntity daily) {
         PvppResultHistoryResponse response = new PvppResultHistoryResponse();
         response.setTicker(entity.getTicker());
         response.setDate(entity.getDate());
         response.setDays(entity.getDays());
+        response.setReturnPct(entity.getReturnPct());
+        response.setVolume(Double.valueOf(entity.getVolume() != null ? entity.getVolume() : 0L));
+        response.setClv(entity.getClv());
+        response.setCenteredClv(entity.getCenteredClv());
         response.setRvol(entity.getRvol());
         response.setEfficiency(entity.getEfficiency());
-        response.setLogRvolZ(entity.getLogRvolZ());
-        response.setPressureScore(entity.getPressureScore());
-        if (daily != null) {
-            response.setReturnPct(daily.getReturnPct());
-            response.setVolume(Double.valueOf(daily.getVolume() != null ? daily.getVolume() : 0L));
-            response.setClv(daily.getClv());
-            response.setCenteredClv(daily.getCenteredClv());
-            response.setReturnZ(daily.getReturnZ());
-            response.setClvZ(daily.getClvZ());
-        }
         return response;
     }
 

@@ -11,12 +11,8 @@ public class PvppResultHistoryResponse {
     private Double volume;
     private Double clv;
     private Double centeredClv;
-    private Double returnZ;
-    private Double clvZ;
     private Double rvol;
     private Double efficiency;
-    private Double logRvolZ;
-    private Double pressureScore;
 
     public String getTicker() {
         return ticker;
@@ -74,22 +70,6 @@ public class PvppResultHistoryResponse {
         this.centeredClv = centeredClv;
     }
 
-    public Double getReturnZ() {
-        return returnZ;
-    }
-
-    public void setReturnZ(Double returnZ) {
-        this.returnZ = returnZ;
-    }
-
-    public Double getClvZ() {
-        return clvZ;
-    }
-
-    public void setClvZ(Double clvZ) {
-        this.clvZ = clvZ;
-    }
-
     public Double getRvol() {
         return rvol;
     }
@@ -104,21 +84,5 @@ public class PvppResultHistoryResponse {
 
     public void setEfficiency(Double efficiency) {
         this.efficiency = efficiency;
-    }
-
-    public Double getLogRvolZ() {
-        return logRvolZ;
-    }
-
-    public void setLogRvolZ(Double logRvolZ) {
-        this.logRvolZ = logRvolZ;
-    }
-
-    public Double getPressureScore() {
-        return pressureScore;
-    }
-
-    public void setPressureScore(Double pressureScore) {
-        this.pressureScore = pressureScore;
     }
 }

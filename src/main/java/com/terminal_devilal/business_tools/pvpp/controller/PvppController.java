@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.business_tools.pvpp.calculator.PvppCalculator;
 import com.terminal_devilal.business_tools.pvpp.dto.PvppConfigRequest;
 import com.terminal_devilal.business_tools.pvpp.dto.PvppConfigResponse;
 import com.terminal_devilal.business_tools.pvpp.dto.PvppGenerationHistoryStatusUpdateRequest;
@@ -28,53 +27,19 @@ import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationHistoryEnti
 import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationStatus;
 import com.terminal_devilal.business_tools.pvpp.service.PvppConfigService;
 import com.terminal_devilal.business_tools.pvpp.service.PvppHistoryService;
-import com.terminal_devilal.indicators.pdv.cache.PDVCacheService;
-import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 
 @RestController
 @RequestMapping("/api/devilal/pvpp")
 public class PvppController {
 
-    private final PvppCalculator pvppCalculator;
     private final PvppHistoryService pvppHistoryService;
     private final PvppConfigService pvppConfigService;
-    private final PDVCacheService pdvCacheService;
 
     @Autowired
-    public PvppController(PvppCalculator pvppCalculator,
-            PvppHistoryService pvppHistoryService,
-            PvppConfigService pvppConfigService,
-            PDVCacheService pdvCacheService) {
-        this.pvppCalculator = pvppCalculator;
+    public PvppController(PvppHistoryService pvppHistoryService,
+            PvppConfigService pvppConfigService) {
         this.pvppHistoryService = pvppHistoryService;
         this.pvppConfigService = pvppConfigService;
-        this.pdvCacheService = pdvCacheService;
-    }
-
-    @GetMapping("/vector")
-    public ResponseEntity<List<PvppResultHistoryResponse>> getVector(
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam("days") Integer days,
-            @RequestParam(required = false) List<String> tickers) {
-        List<PvppResultHistoryResponse> responses = new java.util.ArrayList<>();
-        List<String> resolvedTickers = tickers == null ? pdvCacheService.findDistinctTicker() : tickers;
-        for (String ticker : resolvedTickers) {
-            List<PriceDeliveryVolumeEntity> series = pdvCacheService.findByTickerAndDateGreaterThanEqualOrderByDateAsc(
-                    ticker, date.minusDays(days));
-            var result = pvppCalculator.computeAllWindows(ticker, series, List.of(days));
-            for (var row : result.getHistoryRows()) {
-                PvppResultHistoryResponse response = new PvppResultHistoryResponse();
-                response.setTicker(row.getTicker());
-                response.setDate(row.getDate());
-                response.setDays(row.getDays());
-                response.setRvol(row.getRvol());
-                response.setEfficiency(row.getEfficiency());
-                response.setLogRvolZ(row.getLogRvolZ());
-                response.setPressureScore(row.getPressureScore());
-                responses.add(response);
-            }
-        }
-        return ResponseEntity.ok(responses);
     }
 
     @PostMapping("/history/generate")
