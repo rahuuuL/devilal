@@ -86,4 +86,19 @@
         <sqlFile path="db/migration/V1_014_mk_generation_history.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-015" author="devilal">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="pvpp_result_history" indexName="idx_pvpp_date_days_ticker"/>
+            </not>
+        </preConditions>
+        <sqlFile path="db/migration/V1_015_pvpp_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-016" author="devilal">
+        <sqlFile path="db/migration/V1_016_pvpp_generation_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

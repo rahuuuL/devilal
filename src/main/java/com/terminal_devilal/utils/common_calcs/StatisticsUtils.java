@@ -1,6 +1,9 @@
 package com.terminal_devilal.utils.common_calcs;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public final class StatisticsUtils {
 
@@ -129,12 +132,83 @@ public final class StatisticsUtils {
 		return medianY - (slope * medianTimeIndex(observationCount));
 	}
 
-	public static String determineTrend(boolean h, double z) {
-		if (!h || z == 0.0d) {
-			return "no trend";
-		}
-		return z > 0.0d ? "increasing" : "decreasing";
-	}
+    public static double mean(double[] values) {
+        if (values == null || values.length == 0) {
+            return 0.0d;
+        }
+        double sum = 0.0d;
+        for (double value : values) {
+            sum += value;
+        }
+        return sum / values.length;
+    }
+
+    public static double stdDev(double[] values, double mean) {
+        if (values == null || values.length == 0) {
+            return 0.0d;
+        }
+        double variance = 0.0d;
+        for (double value : values) {
+            double delta = value - mean;
+            variance += delta * delta;
+        }
+        variance /= values.length;
+        return Math.sqrt(variance);
+    }
+
+    public static double zScore(double value, double mean, double stdDev) {
+        if (stdDev == 0.0d) {
+            return 0.0d;
+        }
+        return (value - mean) / stdDev;
+    }
+
+    public static Map<String, Double> zScoreMap(Map<String, Double> rawValuesByKey) {
+        if (rawValuesByKey == null || rawValuesByKey.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+
+        double[] values = rawValuesByKey.values().stream().mapToDouble(Double::doubleValue).toArray();
+        double avg = mean(values);
+        double stdDev = stdDev(values, avg);
+
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : rawValuesByKey.entrySet()) {
+            result.put(entry.getKey(), zScore(entry.getValue(), avg, stdDev));
+        }
+        return result;
+    }
+
+    public static Map<String, Double> percentileMap(Map<String, Double> rawValuesByKey) {
+        if (rawValuesByKey == null || rawValuesByKey.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+
+        Map<String, Double> sortedByValue = rawValuesByKey.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (left, right) -> left,
+                        LinkedHashMap::new));
+
+        int size = sortedByValue.size();
+        Map<String, Double> result = new LinkedHashMap<>();
+        int rank = 0;
+        for (Map.Entry<String, Double> entry : sortedByValue.entrySet()) {
+            double percentile = (100.0d * (rank + 1) / size);
+            result.put(entry.getKey(), percentile);
+            rank++;
+        }
+        return result;
+    }
+
+    public static String determineTrend(boolean h, double z) {
+        if (!h || z == 0.0d) {
+            return "no trend";
+        }
+        return z > 0.0d ? "increasing" : "decreasing";
+    }
 
 	private static double tieContribution(int groupSize) {
 		if (groupSize < 2) {

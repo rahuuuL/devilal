@@ -3,6 +3,9 @@ package com.terminal_devilal.utils.common_calcs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 class StatisticsUtilsTest {
@@ -40,5 +43,31 @@ class StatisticsUtilsTest {
         assertEquals("decreasing", StatisticsUtils.determineTrend(true, -0.5d));
         assertEquals("no trend", StatisticsUtils.determineTrend(false, 0.5d));
         assertEquals("no trend", StatisticsUtils.determineTrend(true, 0.0d));
+    }
+
+    @Test
+    void shouldComputeMeanStdDevAndZScore() {
+        double[] values = new double[] { 1.0d, 2.0d, 3.0d, 4.0d };
+
+        assertEquals(2.5d, StatisticsUtils.mean(values), 1.0e-9d);
+        assertEquals(1.118033988749895d, StatisticsUtils.stdDev(values, 2.5d), 1.0e-9d);
+        assertEquals(-1.3416407864998738d, StatisticsUtils.zScore(1.0d, 2.5d, 1.118033988749895d), 1.0e-9d);
+    }
+
+    @Test
+    void shouldNormalizeMapToZScoresAndPercentiles() {
+        Map<String, Double> raw = new LinkedHashMap<>();
+        raw.put("A", 1.0d);
+        raw.put("B", 3.0d);
+        raw.put("C", 5.0d);
+
+        Map<String, Double> zScores = StatisticsUtils.zScoreMap(raw);
+        assertEquals(-1.224744871391589d, zScores.get("A"), 1.0e-9d);
+        assertEquals(0.0d, zScores.get("B"), 1.0e-9d);
+        assertEquals(1.224744871391589d, zScores.get("C"), 1.0e-9d);
+
+        Map<String, Double> percentiles = StatisticsUtils.percentileMap(raw);
+        assertTrue(percentiles.get("A") < percentiles.get("B"));
+        assertTrue(percentiles.get("B") < percentiles.get("C"));
     }
 }
