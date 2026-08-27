@@ -617,7 +617,11 @@ public class InMemoryPDVCacheService implements PDVCacheService {
         log.error(
                 "Disabling Chronicle PDV snapshot support due to runtime/module error. "
                         + "If you need Chronicle enabled on Java 17+, add JVM flags: "
-                        + "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/sun.nio.ch=ALL-UNNAMED",
+                    + "--add-opens=java.base/java.lang=ALL-UNNAMED "
+                    + "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED "
+                    + "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED "
+                    + "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED "
+                    + "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED",
                 cause);
     }
 

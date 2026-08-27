@@ -2,6 +2,8 @@ FROM gradle:8.5-jdk17
 
 WORKDIR /app
 
+ENV JAVA_TOOL_OPTIONS="--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+
 # COPY to be enabled only in PROD ❌
 # COPY . .
 
