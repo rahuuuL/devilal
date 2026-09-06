@@ -3,10 +3,13 @@ package com.terminal_devilal.indicators.pdv.cache;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.terminal_devilal.indicators.pdv.dto.PDVCacheReloadRequest;
 
 @RestController
 @RequestMapping("/api/cache/pdv")
@@ -19,9 +22,9 @@ public class PDVCacheController {
     }
 
     @PostMapping("/reload")
-    public ResponseEntity<Map<String, String>> reloadCache() {
-        pdvCacheService.reloadCache();
-        pdvCacheService.persistSnapshot();
+    public ResponseEntity<Map<String, String>> reloadCache(
+            @RequestBody(required = false) PDVCacheReloadRequest request) {
+        pdvCacheService.reloadCache(request == null ? null : request.getDate());
         return ResponseEntity.ok(Map.of("status", "ok", "message", "PDV cache reloaded"));
     }
 

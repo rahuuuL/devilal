@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -87,7 +88,7 @@ public class InMemoryPDVCacheService implements PDVCacheService {
                 appendAll(missing);
                 persistSnapshotInternal();
             } else if (!restored) {
-                reloadCache();
+                reloadCache(null);
             }
             cacheReady = true;
             log.info("PDV cache ready with {} tickers and {} records in {} ms", cache.size(), getRecordCount(),
@@ -405,23 +406,32 @@ public class InMemoryPDVCacheService implements PDVCacheService {
     }
 
     @Override
-    public void reloadCache() {
+    public void reloadCache(LocalDate date) {
         if (!cacheProperties.isEnabled()) {
             return;
         }
 
         cacheReady = false;
-        clearCache();
 
-        LocalDate loadFromDate = LocalDate.now()
-                .minusDays(Math.max(1, Math.round(cacheProperties.getPreloadYears() * 365.0d)));
+        List<PriceDeliveryVolumeEntity> rows;
+        if (date != null) {
+            rows = repository.findByDate(date);
+        } else {
+            clearCache();
+            LocalDate loadFromDate = LocalDate.now()
+                    .minusDays(Math.max(1, Math.round(cacheProperties.getPreloadYears() * 365.0d)));
+            rows = repository.findByDateGreaterThanEqualOrderByTickerAscDateAsc(loadFromDate);
+        }
 
-        List<PriceDeliveryVolumeEntity> rows = repository.findByDateGreaterThanEqualOrderByTickerAscDateAsc(loadFromDate);
         appendAll(rows);
-        persistSnapshotInternal();
+        if (date == null) {
+            persistSnapshotInternal();
+        } else {
+            CompletableFuture.runAsync(this::persistSnapshotInternal);
+        }
         cacheReady = true;
 
-        log.info("Reloaded PDV cache from {} with {} records", loadFromDate, rows.size());
+        log.info("Reloaded PDV cache{} with {} records", date == null ? "" : " for " + date, rows.size());
     }
 
     @Override
