@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -21,6 +23,8 @@ import com.terminal_devilal.indicators.volume.utils.SortedWindow;
 @Service
 public class ConsistentVolumeDetector {
 
+	public static final String TICKER_SEPARATOR = ",";
+
 	private final PriceDeliveryVolumeService priceVolume;
 
 	public ConsistentVolumeDetector(PriceDeliveryVolumeService priceVolume) {
@@ -28,7 +32,7 @@ public class ConsistentVolumeDetector {
 		this.priceVolume = priceVolume;
 	}
 
-	public List<ConsistentVolumeSignalResponse> detectConsistentVolumes(LocalDate fromDate, LocalDate toDate,
+	public List<ConsistentVolumeSignalResponse> detectConsistentVolumes(List<String> tickers, LocalDate fromDate, LocalDate toDate,
 			int inputBaselineWindow, double baselineLowPercentile, double baselineHighPercentile,
 			int baseRvolPercentileWindow, double rvolThresholdPercentile, int consistencyWindow, int requiredScore) {
 
@@ -37,7 +41,9 @@ public class ConsistentVolumeDetector {
 		int rvolPercentileWindow = Math.max(inputBaselineWindow, baseRvolPercentileWindow);
 
 		// -------- Fetch data --------
-		List<ConsistentVolumeProjection> allData = priceVolume.getAllVolumesBetweenTwoDates(fromDate, toDate);
+		List<ConsistentVolumeProjection> allData = tickers != null && !tickers.isEmpty()
+				? priceVolume.getVolumesBetweenTwoDatesForTickers(tickers, fromDate, toDate)
+				: priceVolume.getAllVolumesBetweenTwoDates(fromDate, toDate);
 
 		// -------- Output --------
 		Queue<ConsistentVolumeSignalResponse> signals = new ConcurrentLinkedQueue<>();
@@ -241,6 +247,32 @@ public class ConsistentVolumeDetector {
 				slideBaseline(baselineRaw, baselineSorted, curr.getVolume(), baselineWindow);
 			}
 		}
+	}
+
+	public double computeScoreForTicker(List<String> tickers, LocalDate fromDate, LocalDate toDate,
+			int baselineWindow, double baselineLowPercentile, double baselineHighPercentile,
+			int rvolPercentileWindow, double rvolThresholdPercentile, int consistencyWindow, int requiredScore) {
+
+		List<ConsistentVolumeSignalResponse> signals = detectConsistentVolumes(
+			    tickers,
+				fromDate,
+				toDate,
+				baselineWindow,
+				baselineLowPercentile,
+				baselineHighPercentile,
+				rvolPercentileWindow,
+				rvolThresholdPercentile,
+				consistencyWindow,
+				requiredScore
+		);
+
+		Set<String> requestedTickers = tickers == null ? Set.of() : new HashSet<>(tickers);
+		return signals.stream()
+				.filter(signal -> requestedTickers.isEmpty() || requestedTickers.contains(signal.getTicker()))
+				.filter(signal -> signal.getDate() != null && signal.getDate().isEqual(toDate))
+				.mapToDouble(signal -> signal.getConsistencyScore())
+				.max()
+				.orElse(0.0);
 	}
 
 	private void slideBaseline(Deque<Double> raw, SortedWindow sorted, double newValue, int maxSize) {

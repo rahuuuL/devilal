@@ -28,6 +28,7 @@ public class VolumeController {
 	public ResponseEntity<List<ConsistentVolumeSignalResponse>> getConsistentVolumeSignals2(
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+			@RequestParam(required = false) List<String> tickers,
 			@RequestParam(defaultValue = "30") int baselineWindow,
 			@RequestParam(defaultValue = "0.2") double baselineLowPercentile,
 			@RequestParam(defaultValue = "0.8") double baselineHighPercentile,
@@ -36,7 +37,9 @@ public class VolumeController {
 			@RequestParam(defaultValue = "10") int consistencyWindow,
 			@RequestParam(defaultValue = "6") int requiredScore) throws Exception {
 
-		List<ConsistentVolumeSignalResponse> signals = consistentVolumeDetector.detectConsistentVolumes(fromDate,
+		List<ConsistentVolumeSignalResponse> signals = consistentVolumeDetector.detectConsistentVolumes(
+				tickers == null ? List.of() : tickers,
+				fromDate,
 				toDate, baselineWindow, baselineLowPercentile, baselineHighPercentile, rvolPercentileWindow,
 				rvolThresholdPercentile, consistencyWindow, requiredScore);
 

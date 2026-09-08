@@ -15,8 +15,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -402,6 +404,37 @@ public class InMemoryPDVCacheService implements PDVCacheService {
         }
         result.sort(
                 Comparator.comparing(ConsistentVolumeProjection::getTicker).thenComparing(ConsistentVolumeProjection::getDate));
+        return result;
+    }
+
+    @Override
+    public List<ConsistentVolumeProjection> getVolumesBetweenTwoDatesForTickers(List<String> tickers, LocalDate fromDate,
+            LocalDate toDate) {
+        if (!cacheProperties.isEnabled()) {
+            dbFallbackCount.incrementAndGet();
+            return repository.getVolumesBetweenTwoDatesForTickers(tickers, fromDate, toDate);
+        }
+
+        Set<String> requestedTickers = new HashSet<>(tickers);
+        List<ConsistentVolumeProjection> result = new ArrayList<>();
+        for (Map.Entry<String, ArrayList<PriceDeliveryVolumeEntity>> entry : cache.entrySet()) {
+            if (!requestedTickers.contains(entry.getKey())) {
+                continue;
+            }
+            ArrayList<PriceDeliveryVolumeEntity> list = entry.getValue();
+            synchronized (list) {
+                int start = PDVCacheUtils.lowerBound(list, fromDate);
+                int end = PDVCacheUtils.upperBound(list, toDate);
+                if (start > end || start >= list.size() || end < 0) {
+                    continue;
+                }
+                for (int i = start; i <= end; i++) {
+                    PriceDeliveryVolumeEntity row = list.get(i);
+                    result.add(new CacheConsistentVolumeProjection(row.getTicker(), row.getDate(), row.getVolume()));
+                }
+            }
+        }
+        result.sort(Comparator.comparing(ConsistentVolumeProjection::getTicker).thenComparing(ConsistentVolumeProjection::getDate));
         return result;
     }
 

@@ -125,6 +125,11 @@ public class PriceDeliveryVolumeService {
         return pdvCacheService.getAllVolumesBetweenTwoDates(fromDate, toDate);
     }
 
+    public List<ConsistentVolumeProjection> getVolumesBetweenTwoDatesForTickers(List<String> tickers, LocalDate fromDate,
+            LocalDate toDate) {
+        return pdvCacheService.getVolumesBetweenTwoDatesForTickers(tickers, fromDate, toDate);
+    }
+
     public List<ClosePriceProjection> getAllClosesBetweenTwoDates(LocalDate fromDate, LocalDate toDate) {
         return pdvCacheService.getAllCloseBetweenTwoDates(fromDate, toDate);
     }

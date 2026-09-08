@@ -52,6 +52,9 @@ public interface PDVCacheService {
 
     List<ConsistentVolumeProjection> getAllVolumesBetweenTwoDates(LocalDate fromDate, LocalDate toDate);
 
+        List<ConsistentVolumeProjection> getVolumesBetweenTwoDatesForTickers(List<String> tickers, LocalDate fromDate,
+                        LocalDate toDate);
+
     void reloadCache(LocalDate date);
 
     void clearCache();

@@ -89,6 +89,20 @@ public interface PriceDeliveryVolumeRepository extends JpaRepository<PriceDelive
 
 	@Query(value = """
 			SELECT
+			    ticker AS ticker,
+			    date   AS date,
+			    volume AS volume
+			FROM pdvt
+			WHERE ticker IN (:tickers)
+			  AND date >= :fromDate
+			  AND date <= :toDate
+			ORDER BY ticker, date ASC
+			""", nativeQuery = true)
+	List<ConsistentVolumeProjection> getVolumesBetweenTwoDatesForTickers(@Param("tickers") List<String> tickers,
+			@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
+
+	@Query(value = """
+			SELECT
 			    ticker       AS ticker,
 			    date         AS date,
 			    close        AS close
