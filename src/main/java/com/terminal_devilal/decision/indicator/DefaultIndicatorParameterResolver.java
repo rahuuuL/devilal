@@ -14,9 +14,10 @@ public class DefaultIndicatorParameterResolver implements IndicatorParameterReso
     public Map<String, Object> resolve(String indicatorCode, RuleDefinition.Condition condition, IndicatorEvaluationContext context) {
         Map<String, Object> params = new LinkedHashMap<>();
 
-        if ("CONSISTENT_VOLUME_SCORE".equalsIgnoreCase(indicatorCode)) {
+        if ("CONSISTENT_VOLUME_SCORE".equalsIgnoreCase(indicatorCode)
+            && context instanceof VolumeIndicatorEvaluationContext volumeContext) {
             // This can be made dynamic in the future if needed, but for now, we will use fixed values for the default parameters.
-            LocalDate asOfDate = context.getAsOfDate();
+            LocalDate asOfDate = volumeContext.getAsOfDate();
             LocalDate fromDate = asOfDate.minusMonths(18);
             LocalDate toDate = asOfDate;
 
@@ -46,12 +47,15 @@ public class DefaultIndicatorParameterResolver implements IndicatorParameterReso
         if (customParameters.containsKey("lookbackMonths")
                 && !customParameters.containsKey("fromDate")
                 && params.get("lookbackMonths") instanceof Number lookbackMonths) {
-            params.put("fromDate", context.getAsOfDate().minusMonths(lookbackMonths.longValue()));
+                params.put("fromDate", ((VolumeIndicatorEvaluationContext) context).getAsOfDate()
+                    .minusMonths(lookbackMonths.longValue()));
         } else if (params.get("fromDate") == null && params.get("lookbackMonths") instanceof Number lookbackMonths) {
-            params.put("fromDate", context.getAsOfDate().minusMonths(lookbackMonths.longValue()));
+                params.put("fromDate", ((VolumeIndicatorEvaluationContext) context).getAsOfDate()
+                    .minusMonths(lookbackMonths.longValue()));
         }
         if (params.get("toDate") == null) {
-            params.put("toDate", context.getAsOfDate());
+                params.put("toDate", context instanceof VolumeIndicatorEvaluationContext volumeContext
+                    ? volumeContext.getAsOfDate() : params.get("toDate"));
         }
 
         return params;

@@ -7,6 +7,8 @@ import com.terminal_devilal.decision.indicator.IndicatorEvaluationContext;
 import com.terminal_devilal.decision.indicator.IndicatorParameterResolver;
 import com.terminal_devilal.decision.indicator.IndicatorProvider;
 import com.terminal_devilal.decision.indicator.IndicatorProviderRegistry;
+import com.terminal_devilal.decision.indicator.MannKendallIndicatorEvaluationContext;
+import com.terminal_devilal.decision.indicator.VolumeIndicatorEvaluationContext;
 import com.terminal_devilal.decision.model.*;
 import com.terminal_devilal.decision.repository.DecisionOutputVariableRepository;
 import org.slf4j.Logger;
@@ -92,7 +94,7 @@ public class DecisionExecutionService {
                 try {
                     IndicatorProvider provider = providerRegistry.get(indicatorCode);
                     log.debug("Resolving indicator {} via provider {}", indicatorCode, provider.getClass().getSimpleName());
-                    IndicatorEvaluationContext evaluationContext = new IndicatorEvaluationContext(context.getSubjectType(), context.getSubjectId(), context.getAsOfDate());
+                    IndicatorEvaluationContext evaluationContext = createEvaluationContext(indicatorCode, context);
                     Map<String, Object> parameters = parameterResolver.resolve(indicatorCode, condition, evaluationContext);
                     log.debug("Resolved provider parameters for {}: {}", indicatorCode, parameters);
                     Object value = provider.getValue(evaluationContext, parameters);
@@ -109,6 +111,16 @@ public class DecisionExecutionService {
             }
         }
         return new SubjectContext(context.getSubjectType(), context.getSubjectId(), context.getAsOfDate(), merged);
+    }
+
+    private IndicatorEvaluationContext createEvaluationContext(String indicatorCode, SubjectContext context) {
+        if (indicatorCode.startsWith("MK_")) {
+            MannKendallIndicatorEvaluationContext mkContext = new MannKendallIndicatorEvaluationContext(
+                    context.getSubjectType(), context.getSubjectId());
+            mkContext.setToDate(context.getAsOfDate());
+            return mkContext;
+        }
+        return new VolumeIndicatorEvaluationContext(context.getSubjectType(), context.getSubjectId(), context.getAsOfDate());
     }
 
     private boolean matched(SubjectResult result){return result.outputs().values().stream().anyMatch(value->Boolean.TRUE.equals(value));}

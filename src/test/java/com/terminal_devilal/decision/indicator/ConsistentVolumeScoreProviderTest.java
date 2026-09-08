@@ -32,7 +32,7 @@ class ConsistentVolumeScoreProviderTest {
         )).thenReturn(8.0);
 
         ConsistentVolumeScoreProvider provider = new ConsistentVolumeScoreProvider(detector);
-        IndicatorEvaluationContext context = new IndicatorEvaluationContext("TICKER", "RELIANCE", LocalDate.of(2026, 9, 8));
+        IndicatorEvaluationContext context = new VolumeIndicatorEvaluationContext("TICKER", "RELIANCE", LocalDate.of(2026, 9, 8));
 
         Map<String, Object> params = Map.of(
                 "fromDate", LocalDate.of(2025, 3, 8),

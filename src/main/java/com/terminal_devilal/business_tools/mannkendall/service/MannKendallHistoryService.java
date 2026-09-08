@@ -219,7 +219,7 @@ public class MannKendallHistoryService {
         return mkResultHistoryRepository.findByDateBetweenAndTickerInOrderByDateDesc(fromDate, toDate, tickers);
     }
 
-    private List<MkResultHistoryEntity> fetchByDateRangeDaysAndTickers(LocalDate fromDate, LocalDate toDate,
+    public List<MkResultHistoryEntity> fetchByDateRangeDaysAndTickers(LocalDate fromDate, LocalDate toDate,
             Integer days, Set<String> tickers) {
         return mkResultHistoryRepository.findByDateBetweenAndDaysAndTickerInOrderByDateDesc(fromDate, toDate, days,
                 tickers);
