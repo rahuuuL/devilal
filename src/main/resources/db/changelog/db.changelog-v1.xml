@@ -106,4 +106,14 @@
         <sqlFile path="db/migration/V1_017_pvpp_consolidate_history.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-018" author="devilal">
+        <sqlFile path="db/migration/V1_018_decision_engine.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-019" author="devilal">
+        <sqlFile path="db/migration/V1_019_decision_provider_indicator.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>
