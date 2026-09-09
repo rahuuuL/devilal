@@ -1,0 +1,63 @@
+CREATE TABLE decision_indicator_parameter (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    indicator_code VARCHAR(100) NOT NULL,
+    parameter_code VARCHAR(100) NOT NULL,
+    parameter_name VARCHAR(200) NOT NULL,
+    value_type VARCHAR(30) NOT NULL,
+    required BOOLEAN NOT NULL DEFAULT TRUE,
+    default_value_json JSON,
+    resolution_type VARCHAR(30) NOT NULL DEFAULT 'STATIC',
+    dynamic_expression VARCHAR(500),
+    min_value DECIMAL(30,12),
+    max_value DECIMAL(30,12),
+    description TEXT,
+    sequence_no INT NOT NULL DEFAULT 0,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_indicator_parameter (indicator_code, parameter_code),
+    KEY idx_indicator_parameter_indicator (indicator_code),
+    CONSTRAINT fk_indicator_parameter_indicator
+        FOREIGN KEY (indicator_code) REFERENCES decision_indicator(code)
+) ENGINE=InnoDB;
+
+INSERT INTO decision_indicator_parameter (
+    indicator_code,
+    parameter_code,
+    parameter_name,
+    value_type,
+    required,
+    default_value_json,
+    resolution_type,
+    dynamic_expression,
+    min_value,
+    max_value,
+    description,
+    sequence_no,
+    enabled,
+    created_at,
+    updated_at
+) VALUES
+    ('CONSISTENT_VOLUME_SCORE', 'baselineWindow', 'Baseline Window', 'NUMBER', TRUE, '20', 'STATIC', NULL, 1, 500, 'Baseline lookback window for consistent-volume detection', 1, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'baselineLowPercentile', 'Baseline Low Percentile', 'NUMBER', TRUE, '20.0', 'STATIC', NULL, 0, 100, 'Lower percentile bound used in baseline regime detection', 2, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'baselineHighPercentile', 'Baseline High Percentile', 'NUMBER', TRUE, '80.0', 'STATIC', NULL, 0, 100, 'Upper percentile bound used in baseline regime detection', 3, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'rvolPercentileWindow', 'RVOL Percentile Window', 'NUMBER', TRUE, '60', 'STATIC', NULL, 1, 500, 'Window used to determine relative volume percentile threshold', 4, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'rvolThresholdPercentile', 'RVOL Threshold Percentile', 'NUMBER', TRUE, '75.0', 'STATIC', NULL, 0, 100, 'Relative-volume threshold percentile', 5, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'consistencyWindow', 'Consistency Window', 'NUMBER', TRUE, '10', 'STATIC', NULL, 1, 500, 'Minimum consecutive high-volume window requirement', 6, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'requiredScore', 'Required Score', 'NUMBER', TRUE, '7', 'STATIC', NULL, 1, 100, 'Minimum score required to qualify', 7, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'fromDate', 'From Date', 'DATE', TRUE, NULL, 'DYNAMIC', 'AS_OF_DATE_MINUS_MONTHS:18', NULL, NULL, 'Start date for volume signal review', 8, TRUE, NOW(), NOW()),
+    ('CONSISTENT_VOLUME_SCORE', 'toDate', 'To Date', 'DATE', TRUE, NULL, 'DYNAMIC', 'AS_OF_DATE', NULL, NULL, 'End date for volume signal review', 9, TRUE, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    parameter_name = VALUES(parameter_name),
+    value_type = VALUES(value_type),
+    required = VALUES(required),
+    default_value_json = VALUES(default_value_json),
+    resolution_type = VALUES(resolution_type),
+    dynamic_expression = VALUES(dynamic_expression),
+    min_value = VALUES(min_value),
+    max_value = VALUES(max_value),
+    description = VALUES(description),
+    sequence_no = VALUES(sequence_no),
+    enabled = VALUES(enabled),
+    updated_at = NOW();

@@ -116,4 +116,19 @@
         <sqlFile path="db/migration/V1_019_decision_provider_indicator.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-020" author="devilal">
+        <sqlFile path="db/migration/V1_020_decision_indicator_parameter_config.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-021" author="devilal">
+        <sqlFile path="db/migration/V1_021_decision_indicator_shared_fields.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-022" author="devilal">
+        <sqlFile path="db/migration/V1_022_decision_api_source_providers.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

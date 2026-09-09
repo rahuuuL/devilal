@@ -1,13 +1,12 @@
 package com.terminal_devilal.decision.indicator;
 
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +14,7 @@ import com.terminal_devilal.decision.entity.DecisionIndicatorEntity;
 import com.terminal_devilal.decision.repository.DecisionIndicatorRepository;
 import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
 
-class ConsistentVolumeScoreProviderTest {
+class ConsistentVolumeSourceProviderTest {
 
     @Test
     void resolvesScoreFromResolvedProviderParameters() {
@@ -34,11 +33,22 @@ class ConsistentVolumeScoreProviderTest {
         )).thenReturn(List.of());
 
         DecisionIndicatorRepository repository = mock(DecisionIndicatorRepository.class);
-        DecisionIndicatorEntity indicator = new DecisionIndicatorEntity("CONSISTENT_VOLUME_SCORE", "score", "VOLUME", "TICKER", "NUMBER", "VALUE", "PROVIDER", "CONSISTENT_VOLUME_SOURCE", null, null, "desc");
+        DecisionIndicatorEntity indicator = new DecisionIndicatorEntity(
+                "CONSISTENT_VOLUME_SCORE",
+                "score",
+                "VOLUME",
+                "TICKER",
+                "NUMBER",
+                "VALUE",
+                "PROVIDER",
+                "CONSISTENT_VOLUME_SOURCE",
+                null,
+                null,
+                "desc");
         indicator.setSourceProviderCode("CONSISTENT_VOLUME_SOURCE");
         indicator.setFieldExpression("consistencyScore");
         indicator.setRowAggregation("MAX");
-        when(repository.findById("CONSISTENT_VOLUME_SCORE")).thenReturn(Optional.of(indicator));
+        when(repository.findById("CONSISTENT_VOLUME_SCORE")).thenReturn(java.util.Optional.of(indicator));
 
         ConsistentVolumeSourceProvider provider = new ConsistentVolumeSourceProvider(repository, detector);
         IndicatorEvaluationContext context = new IndicatorEvaluationContext("TICKER", "RELIANCE", LocalDate.of(2026, 9, 8));
@@ -57,7 +67,6 @@ class ConsistentVolumeScoreProviderTest {
         );
 
         Object value = provider.getValue(context, params);
-
-        assertNull(value);
+        assertEquals(null, value);
     }
 }

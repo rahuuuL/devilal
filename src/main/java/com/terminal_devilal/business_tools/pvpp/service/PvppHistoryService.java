@@ -321,6 +321,13 @@ public class PvppHistoryService {
         response.setCenteredClv(entity.getCenteredClv());
         response.setRvol(entity.getRvol());
         response.setEfficiency(entity.getEfficiency());
+        Double pressure = entity.getCenteredClv() != null && entity.getRvol() != null
+            ? entity.getCenteredClv() * entity.getRvol()
+            : null;
+        response.setPressure(pressure);
+        response.setScore(entity.getEfficiency() != null && pressure != null
+            ? entity.getEfficiency() * pressure
+            : null);
         return response;
     }
 

@@ -13,6 +13,8 @@ public class PvppResultHistoryResponse {
     private Double centeredClv;
     private Double rvol;
     private Double efficiency;
+    private Double pressure;
+    private Double score;
 
     public String getTicker() {
         return ticker;
@@ -84,5 +86,21 @@ public class PvppResultHistoryResponse {
 
     public void setEfficiency(Double efficiency) {
         this.efficiency = efficiency;
+    }
+
+    public Double getPressure() {
+        return pressure;
+    }
+
+    public void setPressure(Double pressure) {
+        this.pressure = pressure;
+    }
+
+    public Double getScore() {
+        return score;
+    }
+
+    public void setScore(Double score) {
+        this.score = score;
     }
 }

@@ -13,51 +13,54 @@ public class DefaultIndicatorParameterResolver implements IndicatorParameterReso
     @Override
     public Map<String, Object> resolve(String indicatorCode, RuleDefinition.Condition condition, IndicatorEvaluationContext context) {
         Map<String, Object> params = new LinkedHashMap<>();
-
-        if ("CONSISTENT_VOLUME_SCORE".equalsIgnoreCase(indicatorCode)
-            && context instanceof VolumeIndicatorEvaluationContext volumeContext) {
-            // This can be made dynamic in the future if needed, but for now, we will use fixed values for the default parameters.
-            LocalDate asOfDate = volumeContext.getAsOfDate();
-            LocalDate fromDate = asOfDate.minusMonths(18);
-            LocalDate toDate = asOfDate;
-
-            params.put("fromDate", fromDate);
-            params.put("toDate", toDate);
-            params.put("baselineWindow", 20);
-            params.put("baselineLowPercentile", 20.0);
-            params.put("baselineHighPercentile", 80.0);
-            params.put("rvolPercentileWindow", 60);
-            params.put("rvolThresholdPercentile", 75.0);
-            params.put("consistencyWindow", 10);
-            params.put("requiredScore", 7);
+        if (condition != null && condition.parameters() != null) {
+            params.putAll(condition.parameters());
         }
 
-        Map<String, Object> customParameters = condition == null || condition.parameters() == null
-                ? Map.of()
-                : condition.parameters();
-        params.putAll(customParameters);
-
-        if (customParameters.containsKey("fromDate") && customParameters.get("fromDate") instanceof String fromDate) {
-            params.put("fromDate", LocalDate.parse(fromDate));
-        }
-        if (customParameters.containsKey("toDate") && customParameters.get("toDate") instanceof String toDate) {
-            params.put("toDate", LocalDate.parse(toDate));
+        if (context == null || context.getAsOfDate() == null) {
+            throw new IllegalArgumentException("Indicator evaluation requires asOfDate in the execution context");
         }
 
-        if (customParameters.containsKey("lookbackMonths")
-                && !customParameters.containsKey("fromDate")
-                && params.get("lookbackMonths") instanceof Number lookbackMonths) {
-                params.put("fromDate", ((VolumeIndicatorEvaluationContext) context).getAsOfDate()
-                    .minusMonths(lookbackMonths.longValue()));
-        } else if (params.get("fromDate") == null && params.get("lookbackMonths") instanceof Number lookbackMonths) {
-                params.put("fromDate", ((VolumeIndicatorEvaluationContext) context).getAsOfDate()
-                    .minusMonths(lookbackMonths.longValue()));
+        for (Map.Entry<String, Object> entry : new LinkedHashMap<>(params).entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (value instanceof String textValue) {
+                if ("AS_OF_DATE".equalsIgnoreCase(textValue)) {
+                    params.put(key, context.getAsOfDate());
+                } else if (textValue.startsWith("AS_OF_DATE_MINUS_MONTHS:")) {
+                    params.put(key, context.getAsOfDate().minusMonths(Long.parseLong(textValue.substring("AS_OF_DATE_MINUS_MONTHS:".length()))));
+                } else if (textValue.startsWith("AS_OF_DATE_MINUS_DAYS:")) {
+                    params.put(key, context.getAsOfDate().minusDays(Long.parseLong(textValue.substring("AS_OF_DATE_MINUS_DAYS:".length()))));
+                } else if ("fromDate".equals(key) || "toDate".equals(key)) {
+                    params.put(key, LocalDate.parse(textValue));
+                }
+            }
+        }
+
+        if (params.get("fromDate") == null && params.get("lookbackMonths") instanceof Number lookbackMonths) {
+            params.put("fromDate", context.getAsOfDate().minusMonths(lookbackMonths.longValue()));
         }
         if (params.get("toDate") == null) {
-                params.put("toDate", context instanceof VolumeIndicatorEvaluationContext volumeContext
-                    ? volumeContext.getAsOfDate() : params.get("toDate"));
+            params.put("toDate", context.getAsOfDate());
         }
 
+        validateRequiredParameters(indicatorCode, params);
         return params;
+    }
+
+    private void validateRequiredParameters(String indicatorCode, Map<String, Object> params) {
+        if (!"CONSISTENT_VOLUME_SCORE".equalsIgnoreCase(indicatorCode)) {
+            return;
+        }
+        String[] required = {
+                "baselineWindow", "baselineLowPercentile", "baselineHighPercentile",
+                "rvolPercentileWindow", "rvolThresholdPercentile", "consistencyWindow",
+                "requiredScore", "fromDate", "toDate"
+        };
+        for (String key : required) {
+            if (!params.containsKey(key) || params.get(key) == null) {
+                throw new IllegalArgumentException("Missing required parameter for " + indicatorCode + ": " + key);
+            }
+        }
     }
 }

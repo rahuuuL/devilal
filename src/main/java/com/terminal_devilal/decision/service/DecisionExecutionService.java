@@ -7,9 +7,8 @@ import com.terminal_devilal.decision.indicator.IndicatorEvaluationContext;
 import com.terminal_devilal.decision.indicator.IndicatorParameterResolver;
 import com.terminal_devilal.decision.indicator.IndicatorProvider;
 import com.terminal_devilal.decision.indicator.IndicatorProviderRegistry;
-import com.terminal_devilal.decision.indicator.MannKendallIndicatorEvaluationContext;
-import com.terminal_devilal.decision.indicator.VolumeIndicatorEvaluationContext;
 import com.terminal_devilal.decision.model.*;
+import com.terminal_devilal.decision.repository.DecisionIndicatorRepository;
 import com.terminal_devilal.decision.repository.DecisionOutputVariableRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +23,7 @@ public class DecisionExecutionService {
 
     private final DecisionRuleService ruleService;
     private final DecisionOutputVariableRepository outputRepository;
+    private final DecisionIndicatorRepository indicatorRepository;
     private final DecisionRuleEvaluator evaluator;
     private final IndicatorProviderRegistry providerRegistry;
     private final IndicatorParameterResolver parameterResolver;
@@ -31,11 +31,13 @@ public class DecisionExecutionService {
     public DecisionExecutionService(
             DecisionRuleService ruleService,
             DecisionOutputVariableRepository outputRepository,
+            DecisionIndicatorRepository indicatorRepository,
             DecisionRuleEvaluator evaluator,
             IndicatorProviderRegistry providerRegistry,
             IndicatorParameterResolver parameterResolver) {
         this.ruleService = ruleService;
         this.outputRepository = outputRepository;
+        this.indicatorRepository = indicatorRepository;
         this.evaluator = evaluator;
         this.providerRegistry = providerRegistry;
         this.parameterResolver = parameterResolver;
@@ -92,10 +94,21 @@ public class DecisionExecutionService {
                     continue;
                 }
                 try {
-                    IndicatorProvider provider = providerRegistry.get(indicatorCode);
+                    DecisionIndicatorEntity indicator = indicatorRepository.findById(indicatorCode).orElse(null);
+                    String providerCode = indicator != null && indicator.getSourceProviderCode() != null
+                            ? indicator.getSourceProviderCode()
+                            : indicatorCode;
+                    IndicatorProvider provider = providerRegistry.get(providerCode);
                     log.debug("Resolving indicator {} via provider {}", indicatorCode, provider.getClass().getSimpleName());
                     IndicatorEvaluationContext evaluationContext = createEvaluationContext(indicatorCode, context);
                     Map<String, Object> parameters = parameterResolver.resolve(indicatorCode, condition, evaluationContext);
+                    parameters.putIfAbsent("indicatorCode", indicatorCode);
+                    parameters.putIfAbsent("sourceProviderCode", providerCode);
+                    if (indicator != null) {
+                        if (indicator.getFieldExpression() != null) parameters.putIfAbsent("fieldExpression", indicator.getFieldExpression());
+                        if (indicator.getRowFilterExpression() != null) parameters.putIfAbsent("rowFilterExpression", indicator.getRowFilterExpression());
+                        if (indicator.getRowAggregation() != null) parameters.putIfAbsent("rowAggregation", indicator.getRowAggregation());
+                    }
                     log.debug("Resolved provider parameters for {}: {}", indicatorCode, parameters);
                     Object value = provider.getValue(evaluationContext, parameters);
                     if (value != null) {
@@ -114,13 +127,7 @@ public class DecisionExecutionService {
     }
 
     private IndicatorEvaluationContext createEvaluationContext(String indicatorCode, SubjectContext context) {
-        if (indicatorCode.startsWith("MK_")) {
-            MannKendallIndicatorEvaluationContext mkContext = new MannKendallIndicatorEvaluationContext(
-                    context.getSubjectType(), context.getSubjectId());
-            mkContext.setToDate(context.getAsOfDate());
-            return mkContext;
-        }
-        return new VolumeIndicatorEvaluationContext(context.getSubjectType(), context.getSubjectId(), context.getAsOfDate());
+        return new IndicatorEvaluationContext(context.getSubjectType(), context.getSubjectId(), context.getAsOfDate());
     }
 
     private boolean matched(SubjectResult result){return result.outputs().values().stream().anyMatch(value->Boolean.TRUE.equals(value));}
