@@ -59,6 +59,27 @@ public class DecisionIndicatorParameterEntity {
     protected DecisionIndicatorParameterEntity() {
     }
 
+    public DecisionIndicatorParameterEntity(String indicatorCode, String parameterCode, String parameterName, String valueType,
+                                          Boolean required, String defaultValueJson, String resolutionType, String dynamicExpression,
+                                          BigDecimal minValue, BigDecimal maxValue, String description, Integer sequenceNo,
+                                          Boolean enabled) {
+        this.indicatorCode = indicatorCode;
+        this.parameterCode = parameterCode;
+        this.parameterName = parameterName;
+        this.valueType = valueType;
+        this.required = required == null ? true : required;
+        this.defaultValueJson = defaultValueJson;
+        this.resolutionType = resolutionType == null ? "STATIC" : resolutionType;
+        this.dynamicExpression = dynamicExpression;
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+        this.description = description;
+        this.sequenceNo = sequenceNo == null ? 0 : sequenceNo;
+        this.enabled = enabled == null ? true : enabled;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = this.createdAt;
+    }
+
     public Long getId() { return id; }
     public String getIndicatorCode() { return indicatorCode; }
     public String getParameterCode() { return parameterCode; }
@@ -75,4 +96,37 @@ public class DecisionIndicatorParameterEntity {
     public Boolean getEnabled() { return enabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+
+    public void setIndicatorCode(String indicatorCode) { this.indicatorCode = indicatorCode; this.updatedAt = LocalDateTime.now(); }
+    public void setParameterCode(String parameterCode) { this.parameterCode = parameterCode; this.updatedAt = LocalDateTime.now(); }
+    public void setParameterName(String parameterName) { this.parameterName = parameterName; this.updatedAt = LocalDateTime.now(); }
+    public void setValueType(String valueType) { this.valueType = valueType; this.updatedAt = LocalDateTime.now(); }
+    public void setRequired(Boolean required) { this.required = required == null ? true : required; this.updatedAt = LocalDateTime.now(); }
+    public void setDefaultValueJson(String defaultValueJson) { this.defaultValueJson = defaultValueJson; this.updatedAt = LocalDateTime.now(); }
+    public void setResolutionType(String resolutionType) { this.resolutionType = resolutionType == null ? "STATIC" : resolutionType; this.updatedAt = LocalDateTime.now(); }
+    public void setDynamicExpression(String dynamicExpression) { this.dynamicExpression = dynamicExpression; this.updatedAt = LocalDateTime.now(); }
+    public void setMinValue(BigDecimal minValue) { this.minValue = minValue; this.updatedAt = LocalDateTime.now(); }
+    public void setMaxValue(BigDecimal maxValue) { this.maxValue = maxValue; this.updatedAt = LocalDateTime.now(); }
+    public void setDescription(String description) { this.description = description; this.updatedAt = LocalDateTime.now(); }
+    public void setSequenceNo(Integer sequenceNo) { this.sequenceNo = sequenceNo == null ? 0 : sequenceNo; this.updatedAt = LocalDateTime.now(); }
+    public void setEnabled(Boolean enabled) { this.enabled = enabled == null ? true : enabled; this.updatedAt = LocalDateTime.now(); }
+
+    public void update(String indicatorCode, String parameterCode, String parameterName, String valueType, Boolean required,
+                      String defaultValueJson, String resolutionType, String dynamicExpression, BigDecimal minValue,
+                      BigDecimal maxValue, String description, Integer sequenceNo, Boolean enabled) {
+        this.indicatorCode = indicatorCode;
+        this.parameterCode = parameterCode;
+        this.parameterName = parameterName;
+        this.valueType = valueType;
+        this.required = required == null ? true : required;
+        this.defaultValueJson = defaultValueJson;
+        this.resolutionType = resolutionType == null ? "STATIC" : resolutionType;
+        this.dynamicExpression = dynamicExpression;
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+        this.description = description;
+        this.sequenceNo = sequenceNo == null ? 0 : sequenceNo;
+        this.enabled = enabled == null ? true : enabled;
+        this.updatedAt = LocalDateTime.now();
+    }
 }
