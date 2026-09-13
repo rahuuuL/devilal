@@ -7,6 +7,6 @@ import java.util.*;
 public interface DecisionRuleRepository extends JpaRepository<DecisionRuleEntity, Long> {
     Optional<DecisionRuleEntity> findByPublicId(UUID publicId);
     Optional<DecisionRuleEntity> findByOwnerIdAndCode(Long ownerId, String code);
-    List<DecisionRuleEntity> findByOwnerIdOrderByPriorityDescCodeAsc(Long ownerId);
+    List<DecisionRuleEntity> findByOwnerIdAndProfile_CodeOrderByPriorityDescCodeAsc(Long ownerId, String profileCode);
     List<DecisionRuleEntity> findByProfileIdAndStatusAndEnabledTrueOrderByPriorityDesc(Long profileId, String status);
 }

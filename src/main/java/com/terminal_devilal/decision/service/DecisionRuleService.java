@@ -21,7 +21,7 @@ public class DecisionRuleService {
     private final DecisionProfileService profileService;
     private final ObjectMapper mapper;
     public DecisionRuleService(DecisionRuleRepository rules,DecisionRuleVersionRepository versions,DecisionIndicatorRepository indicators,DecisionOutputVariableRepository outputs,DecisionProfileService profileService,ObjectMapper mapper){this.rules=rules;this.versions=versions;this.indicators=indicators;this.outputs=outputs;this.profileService=profileService;this.mapper=mapper;}
-    public List<RuleResponse> list(Long ownerId){return rules.findByOwnerIdOrderByPriorityDescCodeAsc(ownerId).stream().map(this::response).toList();}
+    public List<RuleResponse> list(Long ownerId,String profileCode){return rules.findByOwnerIdAndProfile_CodeOrderByPriorityDescCodeAsc(ownerId,profileCode).stream().map(this::response).toList();}
     public RuleResponse get(UUID id){return response(find(id));}
     @Transactional public RuleResponse create(RuleRequest r){
         if(rules.findByOwnerIdAndCode(r.ownerId(),r.code()).isPresent())throw new DecisionException("RULE_EXISTS","Rule code already exists: "+r.code());

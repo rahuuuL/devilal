@@ -13,7 +13,7 @@ import java.util.*;
 public class DecisionRuleController {
     private final DecisionRuleService service;
     public DecisionRuleController(DecisionRuleService service){this.service=service;}
-    @GetMapping public List<RuleResponse> list(@RequestParam Long ownerId){return service.list(ownerId);}
+    @GetMapping public List<RuleResponse> list(@RequestParam Long ownerId,@RequestParam String profileCode){return service.list(ownerId,profileCode);}
     @GetMapping("/{id}") public RuleResponse get(@PathVariable UUID id){return service.get(id);}
     @PostMapping public ResponseEntity<RuleResponse> create(@Valid @RequestBody RuleRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));}
     @PutMapping("/{id}") public RuleResponse update(@PathVariable UUID id,@Valid @RequestBody RuleRequest request){return service.update(id,request);}
