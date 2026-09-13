@@ -14,6 +14,6 @@ public final class DecisionRequests {
     public record IndicatorParameterRequest(String indicatorCode,String parameterCode,String parameterName,String valueType,Boolean required,String defaultValueJson,String resolutionType,String dynamicExpression,BigDecimal minValue,BigDecimal maxValue,String description,Integer sequenceNo,Boolean enabled) {}
     public record OutputRequest(@NotNull Long ownerId,@NotBlank String profileCode,@NotBlank String code,@NotBlank String name,@NotBlank String valueType,String initialValue,BigDecimal minValue,BigDecimal maxValue) {}
     public record RuleRequest(@NotNull Long ownerId,@NotBlank String profileCode,@NotBlank String code,@NotBlank String name,@NotBlank String ruleType,Integer priority,@NotNull JsonNode definition) {}
-    public record SubjectRequest(@NotBlank String subjectType,@NotBlank String subjectId,LocalDate asOfDate,@NotNull java.util.Map<String,Object> attributes) {}
+    public record SubjectRequest(@NotBlank String subjectType,@NotNull String subjectId,LocalDate asOfDate,@NotNull java.util.Map<String,Object> attributes) {}
     public record EvaluationRequest(@NotNull Long ownerId,@NotBlank String profileCode,LocalDate asOfDate,@NotBlank String subjectType,@NotNull List<SubjectRequest> subjects) {}
 }

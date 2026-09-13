@@ -20,10 +20,12 @@ public class VwapSourceProvider implements IndicatorProvider {
     private final VWAPService vwapService;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
+    private final SubjectTickerResolver tickerResolver;
 
-    public VwapSourceProvider(VWAPService vwapService, DecisionIndicatorRepository indicatorRepository) {
+    public VwapSourceProvider(VWAPService vwapService, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
         this.vwapService = vwapService;
         this.indicatorRepository = indicatorRepository;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -47,7 +49,9 @@ public class VwapSourceProvider implements IndicatorProvider {
         LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate();
         LocalDate fromDate = parameters != null && parameters.get("fromDate") instanceof LocalDate localDate ? localDate : toDate.minusMonths(18);
 
-        List<VwapProjection> rows = vwapService.getVwapDataWithinDates(List.of(context.getSubjectId()), fromDate, toDate);
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
+        List<VwapProjection> rows = vwapService.getVwapDataWithinDates(tickers, fromDate, toDate);
         if (rows.isEmpty()) {
             return null;
         }
@@ -55,7 +59,7 @@ public class VwapSourceProvider implements IndicatorProvider {
         String fieldExpression = indicator.getFieldExpression();
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
         List<Object> values = rows.stream()
-                .filter(row -> row != null && Objects.equals(row.getTicker(), context.getSubjectId()))
+                .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .map(row -> parser.parseExpression(fieldExpression).getValue(row))
                 .filter(Objects::nonNull)

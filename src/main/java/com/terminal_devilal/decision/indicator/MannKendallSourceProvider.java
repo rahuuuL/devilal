@@ -18,11 +18,13 @@ import java.util.Set;
 public class MannKendallSourceProvider implements IndicatorProvider {
     private final MannKendallHistoryService historyService;
     private final DecisionIndicatorRepository indicatorRepository;
+    private final SubjectTickerResolver tickerResolver;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    public MannKendallSourceProvider(MannKendallHistoryService historyService, DecisionIndicatorRepository indicatorRepository) {
+    public MannKendallSourceProvider(MannKendallHistoryService historyService, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
         this.historyService = historyService;
         this.indicatorRepository = indicatorRepository;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -50,7 +52,9 @@ public class MannKendallSourceProvider implements IndicatorProvider {
             return null;
         }
 
-        List<MkResultHistoryEntity> rows = historyService.fetchByDateRangeDaysAndTickers(fromDate, toDate, days, Set.of(context.getSubjectId()));
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
+        List<MkResultHistoryEntity> rows = historyService.fetchByDateRangeDaysAndTickers(fromDate, toDate, days, Set.copyOf(tickers));
         if (rows.isEmpty()) {
             return null;
         }
@@ -58,7 +62,7 @@ public class MannKendallSourceProvider implements IndicatorProvider {
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
         String fieldExpression = indicator.getFieldExpression();
         List<Object> values = rows.stream()
-                .filter(row -> row != null && Objects.equals(row.getTicker(), context.getSubjectId()))
+                .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .map(row -> parser.parseExpression(fieldExpression).getValue(row))
                 .filter(Objects::nonNull)

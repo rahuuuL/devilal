@@ -17,11 +17,13 @@ import java.util.Objects;
 public class ConsistentVolumeSourceProvider implements IndicatorProvider {
     private final DecisionIndicatorRepository indicatorRepository;
     private final ConsistentVolumeDetector detector;
+    private final SubjectTickerResolver tickerResolver;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    public ConsistentVolumeSourceProvider(DecisionIndicatorRepository indicatorRepository, ConsistentVolumeDetector detector) {
+    public ConsistentVolumeSourceProvider(DecisionIndicatorRepository indicatorRepository, ConsistentVolumeDetector detector, SubjectTickerResolver tickerResolver) {
         this.indicatorRepository = indicatorRepository;
         this.detector = detector;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -45,7 +47,8 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
         LocalDate fromDate = parameters != null && parameters.get("fromDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate().minusMonths(18);
         LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate();
 
-        List<String> tickers = List.of(context.getSubjectId().split(ConsistentVolumeDetector.TICKER_SEPARATOR));
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
         List<ConsistentVolumeSignalResponse> rows = detector.detectConsistentVolumes(
                 tickers,
                 fromDate,
@@ -60,7 +63,7 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 
         String fieldExpression = indicator.getFieldExpression();
         List<ConsistentVolumeSignalResponse> subjectRows = rows.stream()
-                .filter(row -> row != null && Objects.equals(row.getTicker(), context.getSubjectId()))
+                .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .toList();
 

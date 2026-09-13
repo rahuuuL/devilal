@@ -20,10 +20,12 @@ public class PdvSourceProvider implements IndicatorProvider {
     private final PriceDeliveryVolumeService service;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
+    private final SubjectTickerResolver tickerResolver;
 
-    public PdvSourceProvider(PriceDeliveryVolumeService service, DecisionIndicatorRepository indicatorRepository) {
+    public PdvSourceProvider(PriceDeliveryVolumeService service, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
         this.service = service;
         this.indicatorRepository = indicatorRepository;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -47,8 +49,10 @@ public class PdvSourceProvider implements IndicatorProvider {
         LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate();
         LocalDate fromDate = parameters != null && parameters.get("fromDate") instanceof LocalDate localDate ? localDate : toDate.minusMonths(18);
 
-        Map<String, List<PriceDeliveryVolumeEntity>> rowsByTicker = service.getPDVForTickerSince(fromDate, List.of(context.getSubjectId()));
-        List<PriceDeliveryVolumeEntity> rows = rowsByTicker.getOrDefault(context.getSubjectId(), List.of());
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
+        Map<String, List<PriceDeliveryVolumeEntity>> rowsByTicker = service.getPDVForTickerSince(fromDate, tickers);
+        List<PriceDeliveryVolumeEntity> rows = tickers.stream().flatMap(ticker -> rowsByTicker.getOrDefault(ticker, List.of()).stream()).toList();
         if (rows.isEmpty()) {
             return null;
         }

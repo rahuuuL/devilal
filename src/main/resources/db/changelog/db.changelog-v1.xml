@@ -131,4 +131,9 @@
         <sqlFile path="db/migration/V1_022_decision_api_source_providers.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-023" author="devilal">
+        <sqlFile path="db/migration/V1_023_watchlist.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

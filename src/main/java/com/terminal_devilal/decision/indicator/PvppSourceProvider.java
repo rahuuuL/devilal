@@ -20,10 +20,12 @@ public class PvppSourceProvider implements IndicatorProvider {
     private final PvppHistoryService historyService;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
+    private final SubjectTickerResolver tickerResolver;
 
-    public PvppSourceProvider(PvppHistoryService historyService, DecisionIndicatorRepository indicatorRepository) {
+    public PvppSourceProvider(PvppHistoryService historyService, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
         this.historyService = historyService;
         this.indicatorRepository = indicatorRepository;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -57,7 +59,9 @@ public class PvppSourceProvider implements IndicatorProvider {
             days = 20;
         }
 
-        List<PvppResultHistoryResponse> rows = historyService.getHistory(fromDate, toDate, days, List.of(context.getSubjectId()));
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
+        List<PvppResultHistoryResponse> rows = historyService.getHistory(fromDate, toDate, days, tickers);
         if (rows.isEmpty()) {
             return null;
         }
@@ -65,7 +69,7 @@ public class PvppSourceProvider implements IndicatorProvider {
         String fieldExpression = indicator.getFieldExpression();
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
         List<Object> values = rows.stream()
-                .filter(row -> row != null && Objects.equals(row.getTicker(), context.getSubjectId()))
+                .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .map(row -> parser.parseExpression(fieldExpression).getValue(row))
                 .filter(Objects::nonNull)

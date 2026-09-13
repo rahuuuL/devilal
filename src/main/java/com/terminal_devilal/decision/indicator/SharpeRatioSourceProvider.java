@@ -20,10 +20,12 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
     private final SharpeRatioService sharpeRatioService;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
+    private final SubjectTickerResolver tickerResolver;
 
-    public SharpeRatioSourceProvider(SharpeRatioService sharpeRatioService, DecisionIndicatorRepository indicatorRepository) {
+    public SharpeRatioSourceProvider(SharpeRatioService sharpeRatioService, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
         this.sharpeRatioService = sharpeRatioService;
         this.indicatorRepository = indicatorRepository;
+        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -49,7 +51,9 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
         double riskFreeRate = parameters != null && parameters.get("riskFreeRate") instanceof Number number ? number.doubleValue() : 0.06d;
         int window = parameters != null && parameters.get("window") instanceof Number number ? number.intValue() : 20;
 
-        List<RatioTImeSeries> rows = sharpeRatioService.computeRatiosForTimeFrame(List.of(context.getSubjectId()), fromDate, toDate, riskFreeRate, window);
+        List<String> tickers = resolveTickers(context, tickerResolver);
+        if (tickers.isEmpty()) return null;
+        List<RatioTImeSeries> rows = sharpeRatioService.computeRatiosForTimeFrame(tickers, fromDate, toDate, riskFreeRate, window);
         if (rows.isEmpty()) {
             return null;
         }
@@ -57,7 +61,7 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
         String fieldExpression = indicator.getFieldExpression();
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
         List<Object> values = rows.stream()
-                .filter(row -> row != null && Objects.equals(row.getTicker(), context.getSubjectId()))
+                .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .map(row -> parser.parseExpression(fieldExpression).getValue(row))
                 .filter(Objects::nonNull)

@@ -32,6 +32,14 @@ public class PortfolioService {
 		return portfolioDAO.findAllActiveWithInvestments().stream().map(this::toResponse).toList();
 	}
 
+	@Transactional(readOnly = true)
+	public List<String> getTickers(String portfolioName) {
+		return portfolioDAO.findByNameWithInvestments(portfolioName)
+				.filter(Portfolio::isActive)
+				.map(portfolio -> portfolio.getInvestments().stream().map(InvestmentEntry::getTicker).toList())
+				.orElseThrow(() -> new IllegalArgumentException("Active portfolio '" + portfolioName + "' not found."));
+	}
+
 	// ── 2. Create portfolio ──────────────────────────────────────────────────
 
 	public PortfolioDTO.PortfolioResponse createPortfolio(PortfolioDTO.CreatePortfolioRequest request) {
