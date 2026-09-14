@@ -42,6 +42,17 @@ public class DecisionIndicatorService {
         entity.update(indicatorCode, parameterCode, request.parameterName(), request.valueType(), request.required(), request.defaultValueJson(), request.resolutionType(), request.dynamicExpression(), request.minValue(), request.maxValue(), request.description(), request.sequenceNo(), request.enabled());
         return parameterResponse(parameterRepository.save(entity));
     }
+    public IndicatorParameterResponse getParameter(String indicatorCode, String parameterCode){
+        DecisionIndicatorParameterEntity entity = parameterRepository.findByIndicatorCodeAndParameterCode(indicatorCode, parameterCode)
+                .orElseThrow(() -> new DecisionException("PARAMETER_NOT_FOUND", "Parameter not found: " + parameterCode));
+        return parameterResponse(entity);
+    }
+    @Transactional public void deleteParameter(String indicatorCode, String parameterCode){
+        if(parameterCode==null || parameterCode.isBlank()) throw new IllegalArgumentException("parameterCode is required");
+        DecisionIndicatorParameterEntity entity = parameterRepository.findByIndicatorCodeAndParameterCode(indicatorCode, parameterCode)
+                .orElseThrow(() -> new DecisionException("PARAMETER_NOT_FOUND", "Parameter not found: " + parameterCode));
+        parameterRepository.delete(entity);
+    }
     @Transactional public IndicatorResponse save(IndicatorRequest request){
         DecisionIndicatorEntity entity=repository.findById(request.code()).orElseGet(()->new DecisionIndicatorEntity(request.code(),request.name(),request.category(),request.subjectType(),request.valueType(),request.unit(),request.sourceType(),request.sourceReference(),request.minValue(),request.maxValue(),request.description()));
         if(repository.existsById(request.code())) entity.update(request.name(),request.category(),request.subjectType(),request.valueType(),request.unit(),request.sourceType(),request.sourceReference(),request.sourceProviderCode(),request.rowFilterExpression(),request.fieldExpression(),request.rowAggregation(),request.minValue(),request.maxValue(),request.description(),request.enabled());

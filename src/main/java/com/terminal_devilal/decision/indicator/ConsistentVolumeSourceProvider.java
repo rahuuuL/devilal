@@ -4,6 +4,8 @@ import com.terminal_devilal.decision.entity.DecisionIndicatorEntity;
 import com.terminal_devilal.decision.repository.DecisionIndicatorRepository;
 import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
 import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,7 @@ import java.util.Objects;
 
 @Component
 public class ConsistentVolumeSourceProvider implements IndicatorProvider {
+    private static final Logger log = LoggerFactory.getLogger(ConsistentVolumeSourceProvider.class);
     private final DecisionIndicatorRepository indicatorRepository;
     private final ConsistentVolumeDetector detector;
     private final SubjectTickerResolver tickerResolver;
@@ -33,7 +36,19 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 
     @Override
     public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters) {
-        if (context == null || context.getSubjectId() == null || context.getAsOfDate() == null) {
+        log.debug("ConsistentVolumeSourceProvider.getValue() called. Context: subjectType={}, subjectId={}, asOfDate={}", 
+                context != null ? context.getSubjectType() : "null",
+                context != null ? context.getSubjectId() : "null", 
+                context != null ? context.getAsOfDate() : "null");
+        
+        if (context == null || context.getAsOfDate() == null) {
+            log.warn("ConsistentVolumeSourceProvider: context or asOfDate is null, returning null");
+            return null;
+        }
+        
+        // Note: For MARKET type, subjectId can be null/empty - that's OK, we'll resolve all market tickers
+        if (context.getSubjectType() == null || context.getSubjectType().isBlank()) {
+            log.warn("ConsistentVolumeSourceProvider: subjectType is null or empty, returning null");
             return null;
         }
 
@@ -41,6 +56,7 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
                 : (String) parameters.getOrDefault("indicatorCode", "CONSISTENT_VOLUME_SCORE");
         DecisionIndicatorEntity indicator = indicatorRepository.findById(indicatorCode).orElse(null);
         if (indicator == null || indicator.getSourceProviderCode() == null || indicator.getFieldExpression() == null) {
+            log.warn("ConsistentVolumeSourceProvider: Indicator {} not found or missing config (sourceProviderCode or fieldExpression)", indicatorCode);
             return null;
         }
 
@@ -48,7 +64,13 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
         LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate();
 
         List<String> tickers = resolveTickers(context, tickerResolver);
-        if (tickers.isEmpty()) return null;
+        log.info("ConsistentVolumeSourceProvider: Resolved tickers for indicator {}. Count: {}, Tickers: {}", indicatorCode, tickers.size(), tickers);
+        
+        if (tickers.isEmpty()) {
+            log.warn("ConsistentVolumeSourceProvider: No tickers resolved for indicator {}", indicatorCode);
+            return null;
+        }
+        
         List<ConsistentVolumeSignalResponse> rows = detector.detectConsistentVolumes(
                 tickers,
                 fromDate,
@@ -61,13 +83,19 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
                 asInt(parameters != null ? parameters.get("consistencyWindow") : null, 10),
                 asInt(parameters != null ? parameters.get("requiredScore") : null, 7));
 
+        log.debug("ConsistentVolumeSourceProvider: Detector returned {} rows for indicator {}", rows.size(), indicatorCode);
+
         String fieldExpression = indicator.getFieldExpression();
         List<ConsistentVolumeSignalResponse> subjectRows = rows.stream()
                 .filter(row -> row != null && tickers.contains(row.getTicker()))
                 .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
                 .toList();
 
+        log.info("ConsistentVolumeSourceProvider: Filtered to {} subject rows for indicator {} with date {} and tickers {}", 
+                subjectRows.size(), indicatorCode, toDate, tickers);
+
         if (subjectRows.isEmpty()) {
+            log.warn("ConsistentVolumeSourceProvider: No subject rows found after filtering for indicator {}", indicatorCode);
             return null;
         }
 
@@ -75,18 +103,24 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
                 .map(row -> parser.parseExpression(fieldExpression).getValue(row))
                 .filter(Objects::nonNull)
                 .toList();
+        
+        log.debug("ConsistentVolumeSourceProvider: Extracted {} values using fieldExpression for indicator {}", values.size(), indicatorCode);
+        
         if (values.isEmpty()) {
+            log.warn("ConsistentVolumeSourceProvider: No values extracted for indicator {} using fieldExpression: {}", indicatorCode, fieldExpression);
             return null;
         }
 
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
-        return switch (aggregation.toUpperCase()) {
+        Object result = switch (aggregation.toUpperCase()) {
             case "MAX" -> values.stream().mapToDouble(this::toDoubleOrNull).max().orElse(Double.NaN);
             case "MIN" -> values.stream().mapToDouble(this::toDoubleOrNull).min().orElse(Double.NaN);
             case "FIRST" -> values.get(0);
             case "SINGLE" -> values.get(0);
             default -> values.get(0);
         };
+        log.info("ConsistentVolumeSourceProvider: Returning {} for indicator {} using aggregation {}", result, indicatorCode, aggregation);
+        return result;
     }
 
     private int asInt(Object value, int fallback) {
