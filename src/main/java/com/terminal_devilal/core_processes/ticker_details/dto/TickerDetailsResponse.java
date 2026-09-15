@@ -1,4 +1,4 @@
-package com.terminal_devilal.core_processes.ticker_details.model;
+package com.terminal_devilal.core_processes.ticker_details.dto;
 
 import java.time.LocalDate;
 

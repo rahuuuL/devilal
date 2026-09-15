@@ -1,4 +1,4 @@
-package com.terminal_devilal.indicators.volume.model;
+package com.terminal_devilal.indicators.volume.dto;
 
 import java.time.LocalDate;
 

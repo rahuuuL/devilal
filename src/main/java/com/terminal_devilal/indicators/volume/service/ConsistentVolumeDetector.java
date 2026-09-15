@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
-import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
+import com.terminal_devilal.indicators.volume.dto.ConsistentVolumeSignalResponse;
 import com.terminal_devilal.indicators.volume.utils.SortedWindow;
 
 @Service

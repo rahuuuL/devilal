@@ -24,7 +24,6 @@ import com.terminal_devilal.business_tools.pvpp.dto.PvppGenerationHistoryStatusU
 import com.terminal_devilal.business_tools.pvpp.dto.PvppHistoryGenerateRequest;
 import com.terminal_devilal.business_tools.pvpp.dto.PvppResultHistoryResponse;
 import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationHistoryEntity;
-import com.terminal_devilal.business_tools.pvpp.entity.PvppGenerationStatus;
 import com.terminal_devilal.business_tools.pvpp.service.PvppConfigService;
 import com.terminal_devilal.business_tools.pvpp.service.PvppHistoryService;
 

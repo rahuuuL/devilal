@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entity.projections.ClosePriceProjection;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
-import com.terminal_devilal.indicators.price.model.RollingSlopeResult;
+import com.terminal_devilal.indicators.price.dto.RollingSlopeResult;
 import com.terminal_devilal.utils.common_calcs.PercentileCalculator;
 import com.terminal_devilal.utils.common_calcs.SlopeCalculator;
 

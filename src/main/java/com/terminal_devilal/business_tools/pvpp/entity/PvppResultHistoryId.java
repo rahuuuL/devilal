@@ -6,7 +6,11 @@ import java.util.Objects;
 
 public class PvppResultHistoryId implements Serializable {
 
-    private String ticker;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private String ticker;
     private LocalDate date;
     private Integer days;
 

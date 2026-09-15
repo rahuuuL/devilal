@@ -1,4 +1,4 @@
-package com.terminal_devilal.indicators.price.model;
+package com.terminal_devilal.indicators.price.dto;
 
 import java.time.LocalDate;
 

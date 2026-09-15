@@ -3,13 +3,13 @@ package com.terminal_devilal.core_processes.sync_data.entity;
 import java.time.LocalDate;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.ColumnResult;
+import jakarta.persistence.ConstructorResult;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.NamedNativeQuery;
-import jakarta.persistence.Table;
 import jakarta.persistence.SqlResultSetMapping;
-import jakarta.persistence.ConstructorResult;
-import jakarta.persistence.ColumnResult;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "industry_details")
@@ -45,7 +45,7 @@ import jakarta.persistence.ColumnResult;
 		    ON i.ticker = t.ticker
 		""", resultSetMapping = "TickerDetailsMapping")
 
-@SqlResultSetMapping(name = "TickerDetailsMapping", classes = @ConstructorResult(targetClass = com.terminal_devilal.core_processes.ticker_details.model.TickerDetailsResponse.class, columns = {
+@SqlResultSetMapping(name = "TickerDetailsMapping", classes = @ConstructorResult(targetClass = com.terminal_devilal.core_processes.ticker_details.dto.TickerDetailsResponse.class, columns = {
 		@ColumnResult(name = "ticker", type = String.class), @ColumnResult(name = "companyName", type = String.class),
 		@ColumnResult(name = "isin", type = String.class), @ColumnResult(name = "macro", type = String.class),
 		@ColumnResult(name = "sector", type = String.class), @ColumnResult(name = "industry", type = String.class),

@@ -7,7 +7,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.terminal_devilal.core_processes.ticker_details.model.TickerDetailsResponse;
+import com.terminal_devilal.core_processes.ticker_details.dto.TickerDetailsResponse;
 import com.terminal_devilal.core_processes.ticker_details.repository.TickerDetailsRepository;
 
 @Service

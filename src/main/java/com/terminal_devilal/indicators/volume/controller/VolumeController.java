@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.terminal_devilal.indicators.volume.model.ConsistentVolumeSignalResponse;
+import com.terminal_devilal.indicators.volume.dto.ConsistentVolumeSignalResponse;
 import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
 
 @RestController

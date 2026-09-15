@@ -24,7 +24,6 @@ import com.terminal_devilal.business_tools.mannkendall.entity.MkResultHistoryEnt
 import com.terminal_devilal.business_tools.mannkendall.repository.MkConfigRepository;
 import com.terminal_devilal.business_tools.mannkendall.repository.MkGenerationHistoryRepository;
 import com.terminal_devilal.business_tools.mannkendall.repository.MkResultHistoryRepository;
-import com.terminal_devilal.utils.WorkingDayDateRangeUtil;
 
 import io.micrometer.core.annotation.Timed;
 

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.terminal_devilal.core_processes.sync_data.entity.TickerIndustryInfo;
-import com.terminal_devilal.core_processes.ticker_details.model.TickerDetailsResponse;
+import com.terminal_devilal.core_processes.ticker_details.dto.TickerDetailsResponse;
 
 @Repository
 public interface TickerDetailsRepository extends JpaRepository<TickerIndustryInfo, String> {

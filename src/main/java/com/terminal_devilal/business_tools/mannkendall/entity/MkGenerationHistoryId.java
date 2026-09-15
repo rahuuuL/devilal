@@ -6,7 +6,11 @@ import java.util.Objects;
 
 public class MkGenerationHistoryId implements Serializable {
 
-    private LocalDate date;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private LocalDate date;
     private Integer days;
 
     public MkGenerationHistoryId() {
