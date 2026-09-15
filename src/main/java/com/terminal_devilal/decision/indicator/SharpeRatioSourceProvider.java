@@ -1,7 +1,11 @@
 package com.terminal_devilal.decision.indicator;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -22,12 +26,10 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
     private final SharpeRatioService sharpeRatioService;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
-    private final SubjectTickerResolver tickerResolver;
 
-    public SharpeRatioSourceProvider(SharpeRatioService sharpeRatioService, DecisionIndicatorRepository indicatorRepository, SubjectTickerResolver tickerResolver) {
+    public SharpeRatioSourceProvider(SharpeRatioService sharpeRatioService, DecisionIndicatorRepository indicatorRepository) {
         this.sharpeRatioService = sharpeRatioService;
         this.indicatorRepository = indicatorRepository;
-        this.tickerResolver = tickerResolver;
     }
 
     @Override
@@ -66,17 +68,30 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
         double riskFreeRate = parameters != null && parameters.get("riskFreeRate") instanceof Number number ? number.doubleValue() : 0.06d;
         int window = parameters != null && parameters.get("window") instanceof Number number ? number.intValue() : 20;
 
-        List<String> tickers = resolveTickers(context, tickerResolver);
-        log.info("SharpeRatioSourceProvider: Resolved tickers for indicator {}. Count: {}, Tickers: {}", indicatorCode, tickers.size(), tickers);
-        
+        List<String> tickers;
+        if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
+            if (context.getSubjectId() == null || context.getSubjectId().isBlank()) {
+                return null;
+            }
+            tickers = List.of(context.getSubjectId());
+        } else if ("MARKET".equalsIgnoreCase(context.getSubjectType())) {
+            Object tickerParameter = parameters == null ? null : parameters.get("tickers");
+            if (!(tickerParameter instanceof Collection<?> collection)) {
+                throw new IllegalArgumentException("MARKET Sharpe provider requires parameters.tickers");
+            }
+            tickers = collection.stream().filter(Objects::nonNull).map(String::valueOf).toList();
+        } else {
+            throw new IllegalArgumentException("Unsupported subject type: " + context.getSubjectType());
+        }
+
         if (tickers.isEmpty()) {
             log.warn("SharpeRatioSourceProvider: No tickers resolved for indicator {}", indicatorCode);
             return null;
         }
-        
+
         List<RatioTImeSeries> rows = sharpeRatioService.computeRatiosForTimeFrame(tickers, fromDate, toDate, riskFreeRate, window);
         log.debug("SharpeRatioSourceProvider: Computed {} rows for indicator {} from {} to {} with window {}", rows.size(), indicatorCode, fromDate, toDate, window);
-        
+
         if (rows.isEmpty()) {
             log.warn("SharpeRatioSourceProvider: No rows computed for indicator {}", indicatorCode);
             return null;
@@ -84,39 +99,50 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
 
         String fieldExpression = indicator.getFieldExpression();
         String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
-        List<Object> values = rows.stream()
-                .filter(row -> row != null && tickers.contains(row.getTicker()))
-                .filter(row -> row.getDate() != null && row.getDate().isEqual(toDate))
-                .map(row -> parser.parseExpression(fieldExpression).getValue(row))
-                .filter(Objects::nonNull)
-                .toList();
-
-        log.info("SharpeRatioSourceProvider: Filtered to {} values for indicator {} with date {} and tickers {}", 
-                values.size(), indicatorCode, toDate, tickers);
-
-        if (values.isEmpty()) {
-            log.warn("SharpeRatioSourceProvider: No values extracted for indicator {} using fieldExpression: {}", indicatorCode, fieldExpression);
-            return null;
+        Map<String, List<Object>> valuesByTicker = new LinkedHashMap<>();
+        for (RatioTImeSeries row : rows) {
+            if (row == null || row.getTicker() == null || row.getDate() == null || !row.getDate().isEqual(toDate)) {
+                continue;
+            }
+            Object value = parser.parseExpression(fieldExpression).getValue(row);
+            if (value != null) {
+                valuesByTicker.computeIfAbsent(row.getTicker(), ignored -> new ArrayList<>()).add(value);
+            }
         }
 
-        Object result = switch (aggregation.toUpperCase()) {
-            case "MAX" -> values.stream().mapToDouble(this::toDoubleOrNull).max().orElse(Double.NaN);
-            case "MIN" -> values.stream().mapToDouble(this::toDoubleOrNull).min().orElse(Double.NaN);
-            case "FIRST" -> values.get(0);
-            case "SINGLE" -> values.get(0);
-            default -> values.get(0);
-        };
-        log.info("SharpeRatioSourceProvider: Returning {} for indicator {} using aggregation {}", result, indicatorCode, aggregation);
+        if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
+            return aggregateValues(valuesByTicker.getOrDefault(tickers.get(0), List.of()), aggregation);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        valuesByTicker.forEach((ticker, values) -> {
+            Object aggregated = aggregateValues(values, aggregation);
+            if (aggregated != null) {
+                result.put(ticker, aggregated);
+            }
+        });
         return result;
     }
 
-    private double toDoubleOrNull(Object value) {
+    private Object aggregateValues(List<Object> values, String aggregation) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return switch (aggregation.toUpperCase(Locale.ROOT)) {
+            case "MAX" -> values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).max(Double::compareTo).orElse(null);
+            case "MIN" -> values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).min(Double::compareTo).orElse(null);
+            case "FIRST", "SINGLE" -> values.get(0);
+            default -> values.get(0);
+        };
+    }
+
+    private Double toDoubleOrNull(Object value) {
         if (value instanceof Number number) {
             return number.doubleValue();
         }
         if (value instanceof String text) {
             return Double.parseDouble(text);
         }
-        return Double.NaN;
+        return null;
     }
 }

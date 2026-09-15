@@ -1,18 +1,22 @@
 package com.terminal_devilal.decision.indicator;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
 
 import com.terminal_devilal.decision.entity.DecisionIndicatorEntity;
-import com.terminal_devilal.decision.entity.DecisionProfileEntity;
 import com.terminal_devilal.decision.repository.DecisionIndicatorRepository;
 import com.terminal_devilal.indicators.volume.dto.ConsistentVolumeSignalResponse;
 import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
@@ -22,14 +26,18 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 	private static final Logger log = LoggerFactory.getLogger(ConsistentVolumeSourceProvider.class);
 	private final DecisionIndicatorRepository indicatorRepository;
 	private final ConsistentVolumeDetector detector;
-	private final SubjectTickerResolver tickerResolver;
 	private final ExpressionParser parser = new SpelExpressionParser();
 
+	@Autowired
 	public ConsistentVolumeSourceProvider(DecisionIndicatorRepository indicatorRepository,
-			ConsistentVolumeDetector detector, SubjectTickerResolver tickerResolver) {
+			ConsistentVolumeDetector detector) {
 		this.indicatorRepository = indicatorRepository;
 		this.detector = detector;
-		this.tickerResolver = tickerResolver;
+	}
+
+	public ConsistentVolumeSourceProvider(DecisionIndicatorRepository indicatorRepository,
+			ConsistentVolumeDetector detector, Object ignored) {
+		this(indicatorRepository, detector);
 	}
 
 	@Override
@@ -38,8 +46,7 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 	}
 
 	@Override
-	public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters,
-			DecisionProfileEntity profile) {
+	public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters) {
 		log.debug(
 				"ConsistentVolumeSourceProvider.getValue() called. Context: subjectType={}, subjectId={}, asOfDate={}",
 				context != null ? context.getSubjectType() : "null", context != null ? context.getSubjectId() : "null",
@@ -72,7 +79,21 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 		LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate
 				: context.getAsOfDate();
 
-		List<String> tickers = resolveTickers(context, tickerResolver);
+		List<String> tickers;
+		if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
+			if (context.getSubjectId() == null || context.getSubjectId().isBlank()) {
+				return null;
+			}
+			tickers = List.of(context.getSubjectId());
+		} else if ("MARKET".equalsIgnoreCase(context.getSubjectType())) {
+			Object tickerParameter = parameters == null ? null : parameters.get("tickers");
+			if (!(tickerParameter instanceof Collection<?> collection)) {
+				throw new IllegalArgumentException("MARKET consistent-volume provider requires parameters.tickers");
+			}
+			tickers = collection.stream().filter(Objects::nonNull).map(String::valueOf).toList();
+		} else {
+			throw new IllegalArgumentException("Unsupported subject type: " + context.getSubjectType());
+		}
 		log.info("ConsistentVolumeSourceProvider: Resolved tickers for indicator {}. Count: {}", indicatorCode,
 				tickers.size());
 
@@ -108,33 +129,29 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 			return null;
 		}
 
-		List<Object> values = subjectRows.stream().map(row -> parser.parseExpression(fieldExpression).getValue(row))
-				.filter(Objects::nonNull).toList();
-
-		log.debug("ConsistentVolumeSourceProvider: Extracted {} values using fieldExpression for indicator {}",
-				values.size(), indicatorCode);
-
-		if (values.isEmpty()) {
-			log.warn("ConsistentVolumeSourceProvider: No values extracted for indicator {} using fieldExpression: {}",
-					indicatorCode, fieldExpression);
-			return null;
+		String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
+		Map<String, List<Object>> valuesByTicker = new LinkedHashMap<>();
+		for (ConsistentVolumeSignalResponse row : subjectRows) {
+			Object value = parser.parseExpression(fieldExpression).getValue(row);
+			if (value != null) {
+				valuesByTicker.computeIfAbsent(row.getTicker(), ignored -> new ArrayList<>()).add(value);
+			}
 		}
-
-		if ("ACCUMULATE".equals(profile.getEvaluationMode())) {
-			String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
-			Object result = switch (aggregation.toUpperCase()) {
-			case "MAX" -> values.stream().mapToDouble(this::toDoubleOrNull).max().orElse(Double.NaN);
-			case "MIN" -> values.stream().mapToDouble(this::toDoubleOrNull).min().orElse(Double.NaN);
-			case "FIRST" -> values.get(0);
-			case "SINGLE" -> values.get(0);
-			default -> values.get(0);
-			};
-			log.info("ConsistentVolumeSourceProvider: Returning {} for indicator {} using aggregation {}", result,
-					indicatorCode, aggregation);
-			return result;
-		} else {
-			return values;
+		if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
+			return aggregateValues(valuesByTicker.get(tickers.get(0)), aggregation);
 		}
+		Map<String, Object> result = new LinkedHashMap<>();
+		valuesByTicker.forEach((ticker, values) -> {
+			Object value = aggregateValues(values, aggregation);
+			if (value != null) {
+				result.put(ticker, value);
+			}
+		});
+		return result;
+	}
+
+	public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters, Object ignored) {
+		return getValue(context, parameters);
 	}
 
 	private int asInt(Object value, int fallback) {
@@ -149,13 +166,27 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 		return fallback;
 	}
 
-	private double toDoubleOrNull(Object value) {
+	private Object aggregateValues(List<Object> values, String aggregation) {
+		if (values == null || values.isEmpty()) {
+			return null;
+		}
+		return switch (aggregation.toUpperCase(Locale.ROOT)) {
+		case "MAX" ->
+			values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).max(Double::compareTo).orElse(null);
+		case "MIN" ->
+			values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).min(Double::compareTo).orElse(null);
+		case "FIRST", "SINGLE" -> values.get(0);
+		default -> values.get(0);
+		};
+	}
+
+	private Double toDoubleOrNull(Object value) {
 		if (value instanceof Number number) {
 			return number.doubleValue();
 		}
 		if (value instanceof String text) {
 			return Double.parseDouble(text);
 		}
-		return Double.NaN;
+		return null;
 	}
 }
