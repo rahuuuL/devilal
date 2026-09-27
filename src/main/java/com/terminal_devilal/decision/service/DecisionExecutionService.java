@@ -68,7 +68,7 @@ public class DecisionExecutionService {
 		List<RuleDefinition> rules = ruleService.activeDefinitions(request.ownerId(), request.profileCode());
 		log.info("Loaded {} active rules for profile {}", rules.size(), profile.getCode());
 		List<SubjectResult> results;
-		if ("MARKET".equalsIgnoreCase(request.subjectType())) {
+		if ("MARKET".equalsIgnoreCase(request.subjectType()) || "WATCHLIST".equalsIgnoreCase(request.subjectType())) {
 			results = evaluateMarket(profile, rules, request);
 		} else {
 			results = request.subjects().stream()
@@ -88,7 +88,7 @@ public class DecisionExecutionService {
 
 		SubjectContext marketContext = new SubjectContext(marketSubject.subjectType(), marketSubject.subjectId(),
 				asOfDate, marketSubject.attributes());
-		IndicatorEvaluationContext evaluationContext = createEvaluationContext("MARKET", marketContext);
+		IndicatorEvaluationContext evaluationContext = createEvaluationContext(request.subjectType(), marketContext);
 		List<String> tickers = tickerResolver.resolve(evaluationContext);
 		log.info("MARKET resolved to {} tickers", tickers.size());
 		if (tickers.isEmpty()) {

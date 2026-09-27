@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.terminal_devilal.business_tools.pvpp.entity.PvppResultHistoryEntity;
@@ -14,6 +16,8 @@ import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
 
 @Component
 public class PvppCalculatorImpl implements PvppCalculator {
+
+    private static final Logger log = LoggerFactory.getLogger(PvppCalculatorImpl.class);
 
     @Override
     public PvppCalcResult computeAllWindows(String ticker, List<PriceDeliveryVolumeEntity> data, List<Integer> enabledDays) {
@@ -68,13 +72,16 @@ public class PvppCalculatorImpl implements PvppCalculator {
             rvolByDays.put(days, rvolForDay);
         }
 
+        boolean targetDateFound = targetDate == null;
         for (int i = 0; i < sorted.size(); i++) {
             PriceDeliveryVolumeEntity current = sorted.get(i);
 
             // Only emit output rows for the requested date; earlier rows are only used to feed the rolling windows
             if (targetDate != null && !targetDate.equals(current.getDate())) {
+                log.debug("PVPP skipped ticker {} record for date {}; target date is {}", ticker, current.getDate(), targetDate);
                 continue;
             }
+            targetDateFound = true;
 
             PvppCalcResult.PvppRow row = calculateDailyRow(current);
 
@@ -107,6 +114,11 @@ public class PvppCalculatorImpl implements PvppCalculator {
                 historyEntity.setEfficiency(calculateEfficiency(row.getReturnPct(), rvol));
                 result.addHistoryRow(historyEntity);
             }
+        }
+
+        if (!targetDateFound) {
+            log.warn("PVPP skipped ticker {} for target date {} because no trading data exists; date may be a weekend, holiday, or missing from PDV data",
+                    ticker, targetDate);
         }
 
         return result;
