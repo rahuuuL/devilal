@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -13,6 +14,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.terminal_devilal.indicators.pdv.entity.projections.ConsistentVolumeProjection;
@@ -23,6 +26,7 @@ import com.terminal_devilal.indicators.volume.utils.SortedWindow;
 @Service
 public class ConsistentVolumeDetector {
 
+	private static final Logger log = LoggerFactory.getLogger(ConsistentVolumeDetector.class);
 	public static final String TICKER_SEPARATOR = ",";
 
 	private final PriceDeliveryVolumeService priceVolume;
@@ -44,6 +48,14 @@ public class ConsistentVolumeDetector {
 		List<ConsistentVolumeProjection> allData = tickers != null && !tickers.isEmpty()
 				? priceVolume.getVolumesBetweenTwoDatesForTickers(tickers, fromDate, toDate)
 				: priceVolume.getAllVolumesBetweenTwoDates(fromDate, toDate);
+		List<VolumeBarDiagnostic> zydusLifeBars = allData.stream().filter(Objects::nonNull)
+				.filter(data -> "ZYDUSLIFE".equalsIgnoreCase(data.getTicker()))
+				.map(data -> new VolumeBarDiagnostic(data.getDate(), data.getVolume())).toList();
+		log.info(
+				"ConsistentVolumeDetector: Source bars for targetTicker=ZYDUSLIFE fromDate={} toDate={} requestedTickers={} barCount={} baselineWindow={} rvolPercentileWindow={} baselinePercentiles={}-{} rvolThresholdPercentile={} consistencyWindow={} requiredScore={} bars={}",
+				fromDate, toDate, tickers, zydusLifeBars.size(), baselineWindow, rvolPercentileWindow,
+				baselineLowPercentile, baselineHighPercentile, rvolThresholdPercentile, consistencyWindow, requiredScore,
+				zydusLifeBars);
 
 		// -------- Output --------
 		Queue<ConsistentVolumeSignalResponse> signals = new ConcurrentLinkedQueue<>();
@@ -284,5 +296,8 @@ public class ConsistentVolumeDetector {
 			double old = raw.removeFirst();
 			sorted.remove(old);
 		}
+	}
+
+	private record VolumeBarDiagnostic(LocalDate date, Long volume) {
 	}
 }

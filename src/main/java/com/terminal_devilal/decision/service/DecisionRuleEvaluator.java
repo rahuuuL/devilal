@@ -27,10 +27,14 @@ public class DecisionRuleEvaluator {
 		log.info("Evaluating {} rules for subject {} {} at {}", rules.size(), context.getSubjectType(),
 				context.getSubjectId(), context.getAsOfDate());
 		rules.stream().sorted(Comparator.comparingInt(RuleDefinition::priority).reversed()).forEach(rule -> {
-			boolean allConditionsMatched = rule.conditions().stream()
-					.allMatch(condition -> matches(condition, context));
-			log.info("Rule {} priority={} matched={} conditions={}", rule.name(), rule.priority(), allConditionsMatched,
-					rule.conditions());
+			List<ConditionEvaluation> evaluations = rule.conditions().stream().map(condition -> {
+				Object actual = context.getAttribute(condition.indicator());
+				return new ConditionEvaluation(condition.indicator(), actual, condition.operator(), condition.value(),
+						matches(condition, actual));
+			}).toList();
+			boolean allConditionsMatched = evaluations.stream().allMatch(ConditionEvaluation::matched);
+			log.info("Rule {} priority={} matched={} conditionEvaluations={}", rule.name(), rule.priority(),
+					allConditionsMatched, evaluations);
 			if (allConditionsMatched) {
 				fired.add(rule.name());
 				log.info("Rule {} fired for subject {} {}. Applying {} action(s)", rule.name(),
@@ -43,8 +47,7 @@ public class DecisionRuleEvaluator {
 		return fired;
 	}
 
-	private boolean matches(RuleDefinition.Condition condition, SubjectContext context) {
-		Object actual = context.getAttribute(condition.indicator());
+	private boolean matches(RuleDefinition.Condition condition, Object actual) {
 		log.debug("Checking condition indicator={} actual={} operator={} expected={}", condition.indicator(), actual,
 				condition.operator(), condition.value());
 		if (condition.operator() == RuleDefinition.Operator.BETWEEN) {
@@ -143,5 +146,9 @@ public class DecisionRuleEvaluator {
 		if (value == null)
 			throw new IllegalArgumentException("Numeric action requires a value");
 		return value;
+	}
+
+	private record ConditionEvaluation(String indicator, Object actual, RuleDefinition.Operator operator, Object expected,
+			boolean matched) {
 	}
 }

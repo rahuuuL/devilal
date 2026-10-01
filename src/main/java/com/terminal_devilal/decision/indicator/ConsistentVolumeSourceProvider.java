@@ -47,7 +47,7 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 
 	@Override
 	public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters) {
-		log.debug(
+		log.info(
 				"ConsistentVolumeSourceProvider.getValue() called. Context: subjectType={}, subjectId={}, asOfDate={}",
 				context != null ? context.getSubjectType() : "null", context != null ? context.getSubjectId() : "null",
 				context != null ? context.getAsOfDate() : "null");
@@ -111,17 +111,35 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 				asInt(parameters != null ? parameters.get("consistencyWindow") : null, 10),
 				asInt(parameters != null ? parameters.get("requiredScore") : null, 7));
 
-		log.debug("ConsistentVolumeSourceProvider: Detector returned {} rows for indicator {}", rows.size(),
+		log.info("ConsistentVolumeSourceProvider: Detector returned {} rows for indicator {}", rows.size(),
 				indicatorCode);
 
 		String fieldExpression = indicator.getFieldExpression();
-		List<ConsistentVolumeSignalResponse> subjectRows = rows.stream()
-				.filter(row -> row != null && tickers.contains(row.getTicker()))
+		List<RowFilterDiagnostic> rowDiagnostics = rows.stream().map(row -> {
+			if (row == null) {
+				return new RowFilterDiagnostic(null, null, null, null, null, false, false, "NULL_ROW");
+			}
+			boolean tickerMatched = tickers.contains(row.getTicker());
+			boolean dateMatched = row.getDate() != null && row.getDate().isEqual(toDate);
+			String reason = tickerMatched && dateMatched ? "QUALIFIED"
+					: !tickerMatched && !dateMatched ? "TICKER_AND_DATE_MISMATCH"
+							: !tickerMatched ? "TICKER_MISMATCH" : "DATE_MISMATCH";
+			return new RowFilterDiagnostic(row.getTicker(), row.getDate(), row.getConsistencyScore(),
+					row.getConsistencyWindow(), row.getRelativeVolumesCombinedAverage(), tickerMatched, dateMatched,
+					reason);
+		}).toList();
+		List<ConsistentVolumeSignalResponse> subjectRows = rows.stream().filter(Objects::nonNull)
+				.filter(row -> tickers.contains(row.getTicker()))
 				.filter(row -> row.getDate() != null && row.getDate().isEqual(toDate)).toList();
 
+		List<RowFilterDiagnostic> zydusLifeDiagnostics = rowDiagnostics.stream()
+				.filter(diagnostic -> "ZYDUSLIFE".equalsIgnoreCase(diagnostic.ticker())).toList();
+		long qualifiedZydusLifeRows = zydusLifeDiagnostics.stream()
+				.filter(diagnostic -> diagnostic.tickerMatched() && diagnostic.dateMatched()).count();
 		log.info(
-				"ConsistentVolumeSourceProvider: Filtered to {} subject rows for indicator {} with date {} and tickers {}",
-				subjectRows.size(), indicatorCode, toDate, tickers.size());
+				"ConsistentVolumeSourceProvider: Row filter for indicator {} targetTicker=ZYDUSLIFE requestedDate={} inputRows={} qualifiedRows={} rejectedRows={} decisions={}",
+				indicatorCode, toDate, zydusLifeDiagnostics.size(), qualifiedZydusLifeRows,
+				zydusLifeDiagnostics.size() - qualifiedZydusLifeRows, zydusLifeDiagnostics);
 
 		if (subjectRows.isEmpty()) {
 			log.warn("ConsistentVolumeSourceProvider: No subject rows found after filtering for indicator {}",
@@ -188,5 +206,10 @@ public class ConsistentVolumeSourceProvider implements IndicatorProvider {
 			return Double.parseDouble(text);
 		}
 		return null;
+	}
+
+	private record RowFilterDiagnostic(String ticker, LocalDate date, Integer consistencyScore,
+			Integer consistencyWindow, Double relativeVolumesCombinedAverage, boolean tickerMatched, boolean dateMatched,
+			String reason) {
 	}
 }

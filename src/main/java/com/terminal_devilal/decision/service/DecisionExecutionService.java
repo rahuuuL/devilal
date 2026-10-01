@@ -140,13 +140,13 @@ public class DecisionExecutionService {
 
 	private SubjectContext resolveProviderValues(List<RuleDefinition> rules, SubjectContext context) {
 		Map<String, Object> merged = new LinkedHashMap<>(context.getAttributes());
-		log.debug("Starting provider-based resolution for {} {} with {} rule conditions", context.getSubjectType(),
+		log.info("Starting provider-based resolution for {} {} with {} rule conditions", context.getSubjectType(),
 				context.getSubjectId(), rules.size());
 		for (RuleDefinition rule : rules) {
 			for (RuleDefinition.Condition condition : rule.conditions()) {
 				String indicatorCode = condition.indicator();
 				if (merged.containsKey(indicatorCode)) {
-					log.debug(
+					log.info(
 							"Indicator {} already present in request attributes; skipping provider resolution. Value={}",
 							indicatorCode, merged.get(indicatorCode));
 					continue;
@@ -157,7 +157,7 @@ public class DecisionExecutionService {
 							? indicator.getSourceProviderCode()
 							: indicatorCode;
 					IndicatorProvider provider = providerRegistry.get(providerCode);
-					log.debug("Resolving indicator {} via provider {}", indicatorCode,
+					log.info("Resolving indicator {} via provider {}", indicatorCode,
 							provider.getClass().getSimpleName());
 					IndicatorEvaluationContext evaluationContext = createEvaluationContext(context.getSubjectType(),
 							context);
@@ -173,7 +173,7 @@ public class DecisionExecutionService {
 						if (indicator.getRowAggregation() != null)
 							parameters.putIfAbsent("rowAggregation", indicator.getRowAggregation());
 					}
-					log.debug("Resolved provider parameters for {}: {}", indicatorCode, parameters);
+					log.info("Resolved provider parameters for {}: {}", indicatorCode, parameters);
 					Object value = provider.getValue(evaluationContext, parameters);
 					if (value != null) {
 						merged.put(indicatorCode, value);
