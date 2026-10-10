@@ -111,7 +111,15 @@ public class PvppCalculatorImpl implements PvppCalculator {
                 historyEntity.setClv(row.getClv());
                 historyEntity.setCenteredClv(row.getCenteredClv());
                 historyEntity.setRvol(rvol);
-                historyEntity.setEfficiency(calculateEfficiency(row.getReturnPct(), rvol));
+                Double efficiency = calculateEfficiency(row.getReturnPct(), rvol);
+                historyEntity.setEfficiency(efficiency);
+                Double pressure = row.getCenteredClv() != null
+                        ? row.getCenteredClv() * rvol
+                        : null;
+                historyEntity.setPressure(pressure);
+                historyEntity.setScore(efficiency != null && pressure != null
+                        ? efficiency * pressure
+                        : null);
                 result.addHistoryRow(historyEntity);
             }
         }

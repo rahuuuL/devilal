@@ -43,6 +43,12 @@ public class PvppResultHistoryEntity {
     @Column(name = "efficiency")
     private Double efficiency;
 
+    @Column(name = "pressure")
+    private Double pressure;
+
+    @Column(name = "score")
+    private Double score;
+
     public PvppResultHistoryEntity() {
     }
 
@@ -116,5 +122,21 @@ public class PvppResultHistoryEntity {
 
     public void setEfficiency(Double efficiency) {
         this.efficiency = efficiency;
+    }
+
+    public Double getPressure() {
+        return pressure;
+    }
+
+    public void setPressure(Double pressure) {
+        this.pressure = pressure;
+    }
+
+    public Double getScore() {
+        return score;
+    }
+
+    public void setScore(Double score) {
+        this.score = score;
     }
 }

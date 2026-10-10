@@ -16,7 +16,7 @@ import io.micrometer.core.annotation.Timed;
 public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryCustomRepository {
 
     private static final String HISTORY_UPSERT_PREFIX_SQL = "INSERT INTO pvpp_result_history ("
-            + "ticker, date, days, return_pct, volume, clv, centered_clv, rvol, efficiency"
+            + "ticker, date, days, return_pct, volume, clv, centered_clv, rvol, efficiency, pressure, score"
             + ") VALUES ";
     private static final String HISTORY_UPSERT_SUFFIX_SQL =
             " ON DUPLICATE KEY UPDATE "
@@ -25,8 +25,10 @@ public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryC
                     + "clv = VALUES(clv), "
                     + "centered_clv = VALUES(centered_clv), "
                     + "rvol = VALUES(rvol), "
-                    + "efficiency = VALUES(efficiency)";
-    private static final String HISTORY_VALUE_TUPLE = "(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    + "efficiency = VALUES(efficiency), "
+                    + "pressure = VALUES(pressure), "
+                    + "score = VALUES(score)";
+    private static final String HISTORY_VALUE_TUPLE = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private final JdbcTemplate jdbcTemplate;
     private final int upsertChunkSize;
@@ -52,7 +54,7 @@ public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryC
 
     private void upsertHistoryChunk(List<PvppResultHistoryEntity> chunk) {
         StringBuilder sql = new StringBuilder(HISTORY_UPSERT_PREFIX_SQL);
-        List<Object> params = new ArrayList<>(chunk.size() * 9);
+        List<Object> params = new ArrayList<>(chunk.size() * 11);
 
         for (int i = 0; i < chunk.size(); i++) {
             if (i > 0) {
@@ -70,6 +72,8 @@ public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryC
             params.add(entity.getCenteredClv());
             params.add(entity.getRvol());
             params.add(entity.getEfficiency());
+            params.add(entity.getPressure());
+            params.add(entity.getScore());
         }
 
         sql.append(HISTORY_UPSERT_SUFFIX_SQL);
