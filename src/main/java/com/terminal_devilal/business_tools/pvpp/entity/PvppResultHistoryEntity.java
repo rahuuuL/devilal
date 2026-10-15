@@ -34,6 +34,9 @@ public class PvppResultHistoryEntity {
     @Column(name = "clv")
     private Double clv;
 
+    @Column(name = "body_weight")
+    private Double bodyWeight;
+
     @Column(name = "centered_clv")
     private Double centeredClv;
 
@@ -98,6 +101,14 @@ public class PvppResultHistoryEntity {
 
     public void setClv(Double clv) {
         this.clv = clv;
+    }
+
+    public Double getBodyWeight() {
+        return bodyWeight;
+    }
+
+    public void setBodyWeight(Double bodyWeight) {
+        this.bodyWeight = bodyWeight;
     }
 
     public Double getCenteredClv() {

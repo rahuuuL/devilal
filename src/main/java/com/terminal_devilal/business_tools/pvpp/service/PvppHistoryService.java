@@ -318,6 +318,7 @@ public class PvppHistoryService {
         response.setReturnPct(entity.getReturnPct());
         response.setVolume(Double.valueOf(entity.getVolume() != null ? entity.getVolume() : 0L));
         response.setClv(entity.getClv());
+        response.setBodyWeight(entity.getBodyWeight());
         response.setCenteredClv(entity.getCenteredClv());
         response.setRvol(entity.getRvol());
         response.setEfficiency(entity.getEfficiency());

@@ -10,6 +10,7 @@ public class PvppResultHistoryResponse {
     private Double returnPct;
     private Double volume;
     private Double clv;
+    private Double bodyWeight;
     private Double centeredClv;
     private Double rvol;
     private Double efficiency;
@@ -62,6 +63,14 @@ public class PvppResultHistoryResponse {
 
     public void setClv(Double clv) {
         this.clv = clv;
+    }
+
+    public Double getBodyWeight() {
+        return bodyWeight;
+    }
+
+    public void setBodyWeight(Double bodyWeight) {
+        this.bodyWeight = bodyWeight;
     }
 
     public Double getCenteredClv() {

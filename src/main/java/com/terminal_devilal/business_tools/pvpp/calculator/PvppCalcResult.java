@@ -43,6 +43,7 @@ public class PvppCalcResult {
         private LocalDate date;
         private Double returnPct;
         private Double clv;
+        private Double bodyWeight;
         private Double centeredClv;
         private Long volume;
         private Double rvol;
@@ -81,6 +82,14 @@ public class PvppCalcResult {
 
         public void setClv(Double clv) {
             this.clv = clv;
+        }
+
+        public Double getBodyWeight() {
+            return bodyWeight;
+        }
+
+        public void setBodyWeight(Double bodyWeight) {
+            this.bodyWeight = bodyWeight;
         }
 
         public Double getCenteredClv() {

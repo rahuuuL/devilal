@@ -16,19 +16,20 @@ import io.micrometer.core.annotation.Timed;
 public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryCustomRepository {
 
     private static final String HISTORY_UPSERT_PREFIX_SQL = "INSERT INTO pvpp_result_history ("
-            + "ticker, date, days, return_pct, volume, clv, centered_clv, rvol, efficiency, pressure, score"
+            + "ticker, date, days, return_pct, volume, clv, body_weight, centered_clv, rvol, efficiency, pressure, score"
             + ") VALUES ";
     private static final String HISTORY_UPSERT_SUFFIX_SQL =
             " ON DUPLICATE KEY UPDATE "
                     + "return_pct = VALUES(return_pct), "
                     + "volume = VALUES(volume), "
                     + "clv = VALUES(clv), "
+                    + "body_weight = VALUES(body_weight), "
                     + "centered_clv = VALUES(centered_clv), "
                     + "rvol = VALUES(rvol), "
                     + "efficiency = VALUES(efficiency), "
                     + "pressure = VALUES(pressure), "
                     + "score = VALUES(score)";
-    private static final String HISTORY_VALUE_TUPLE = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String HISTORY_VALUE_TUPLE = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private final JdbcTemplate jdbcTemplate;
     private final int upsertChunkSize;
@@ -54,7 +55,7 @@ public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryC
 
     private void upsertHistoryChunk(List<PvppResultHistoryEntity> chunk) {
         StringBuilder sql = new StringBuilder(HISTORY_UPSERT_PREFIX_SQL);
-        List<Object> params = new ArrayList<>(chunk.size() * 11);
+        List<Object> params = new ArrayList<>(chunk.size() * 12);
 
         for (int i = 0; i < chunk.size(); i++) {
             if (i > 0) {
@@ -69,6 +70,7 @@ public class PvppResultHistoryCustomRepositoryImpl implements PvppResultHistoryC
             params.add(entity.getReturnPct());
             params.add(entity.getVolume());
             params.add(entity.getClv());
+            params.add(entity.getBodyWeight());
             params.add(entity.getCenteredClv());
             params.add(entity.getRvol());
             params.add(entity.getEfficiency());

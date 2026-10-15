@@ -109,16 +109,17 @@ public class PvppCalculatorImpl implements PvppCalculator {
                 historyEntity.setReturnPct(row.getReturnPct());
                 historyEntity.setVolume(current.getVolume());
                 historyEntity.setClv(row.getClv());
+                historyEntity.setBodyWeight(row.getBodyWeight());
                 historyEntity.setCenteredClv(row.getCenteredClv());
                 historyEntity.setRvol(rvol);
                 Double efficiency = calculateEfficiency(row.getReturnPct(), rvol);
                 historyEntity.setEfficiency(efficiency);
                 Double pressure = row.getCenteredClv() != null
-                        ? row.getCenteredClv() * rvol
+                        ? Math.tanh(row.getCenteredClv() * rvol * row.getBodyWeight())
                         : null;
                 historyEntity.setPressure(pressure);
                 historyEntity.setScore(efficiency != null && pressure != null
-                        ? efficiency * pressure
+                        ? Math.tanh(efficiency * pressure)
                         : null);
                 result.addHistoryRow(historyEntity);
             }
@@ -144,6 +145,7 @@ public class PvppCalculatorImpl implements PvppCalculator {
         row.setVolume(current.getVolume());
         row.setReturnPct(calculateReturnPct(current));
         row.setClv(calculateClv(current));
+        row.setBodyWeight(calculateBodyWeight(current));
         row.setCenteredClv(calculateCenteredClv(current));
         return row;
     }
@@ -171,6 +173,19 @@ public class PvppCalculatorImpl implements PvppCalculator {
             return 0.5d;
         }
         return (current.getClose() - low) / (high - low);
+    }
+
+    @Override
+    public Double calculateBodyWeight(PriceDeliveryVolumeEntity current) {
+        if (current == null) {
+            return null;
+        }
+        double high = current.getHigh();
+        double low = current.getLow();
+        if (high == low) {
+            return null;
+        }
+        return (current.getClose() - current.getOpen()) / (high - low);
     }
 
     @Override

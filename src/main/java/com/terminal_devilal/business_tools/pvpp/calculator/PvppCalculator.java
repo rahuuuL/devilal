@@ -19,6 +19,8 @@ public interface PvppCalculator {
 
     Double calculateClv(PriceDeliveryVolumeEntity current);
 
+    Double calculateBodyWeight(PriceDeliveryVolumeEntity current);
+
     Double calculateCenteredClv(PriceDeliveryVolumeEntity current);
 
     Double calculateRvol(List<PriceDeliveryVolumeEntity> data, int days, int index);
