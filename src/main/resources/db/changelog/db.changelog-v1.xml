@@ -146,4 +146,19 @@
         <sqlFile path="db/migration/V1_025_pvpp_body_weight.sql"
                  relativeToChangelogFile="false"/>
     </changeSet>
+
+    <changeSet id="V1-026" author="devilal">
+        <sqlFile path="db/migration/V1_026_sharpe_sortino_history.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-027" author="devilal">
+        <sqlFile path="db/migration/V1_027_sharpe_sortino_risk_free_rate.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
+
+    <changeSet id="V1-028" author="devilal">
+        <sqlFile path="db/migration/V1_028_sharpe_sortino_skipped_tickers.sql"
+                 relativeToChangelogFile="false"/>
+    </changeSet>
 </databaseChangeLog>

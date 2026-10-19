@@ -1,13 +1,11 @@
 package com.terminal_devilal.decision.indicator;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,20 +13,24 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
 
-import com.terminal_devilal.business_tools.ratio_analysis.dto.RatioTImeSeries;
-import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeRatioService;
+import com.terminal_devilal.business_tools.ratio_analysis.dto.SharpeSortinoHistoryResponse;
+import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeSortinoHistoryService;
 import com.terminal_devilal.decision.entity.DecisionIndicatorEntity;
 import com.terminal_devilal.decision.repository.DecisionIndicatorRepository;
 
 @Component
 public class SharpeRatioSourceProvider implements IndicatorProvider {
+
     private static final Logger log = LoggerFactory.getLogger(SharpeRatioSourceProvider.class);
-    private final SharpeRatioService sharpeRatioService;
+    private static final int DEFAULT_DAYS = 20;
+
+    private final SharpeSortinoHistoryService historyService;
     private final DecisionIndicatorRepository indicatorRepository;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    public SharpeRatioSourceProvider(SharpeRatioService sharpeRatioService, DecisionIndicatorRepository indicatorRepository) {
-        this.sharpeRatioService = sharpeRatioService;
+    public SharpeRatioSourceProvider(SharpeSortinoHistoryService historyService,
+            DecisionIndicatorRepository indicatorRepository) {
+        this.historyService = historyService;
         this.indicatorRepository = indicatorRepository;
     }
 
@@ -39,110 +41,119 @@ public class SharpeRatioSourceProvider implements IndicatorProvider {
 
     @Override
     public Object getValue(IndicatorEvaluationContext context, Map<String, Object> parameters) {
-        log.debug("SharpeRatioSourceProvider.getValue() called. Context: subjectType={}, subjectId={}, asOfDate={}", 
-                context != null ? context.getSubjectType() : "null",
-                context != null ? context.getSubjectId() : "null", 
-                context != null ? context.getAsOfDate() : "null");
-        
         if (context == null || context.getAsOfDate() == null) {
-            log.warn("SharpeRatioSourceProvider: context or asOfDate is null, returning null");
+            log.warn("SharpeRatioSourceProvider requires an evaluation context with asOfDate");
             return null;
         }
-        
-        // Note: For MARKET type, subjectId can be null/empty - that's OK, we'll resolve all market tickers
         if (context.getSubjectType() == null || context.getSubjectType().isBlank()) {
-            log.warn("SharpeRatioSourceProvider: subjectType is null or empty, returning null");
+            log.warn("SharpeRatioSourceProvider requires a subjectType for subject {}", context.getSubjectId());
             return null;
         }
 
-        String indicatorCode = parameters == null || parameters.isEmpty() ? "SORTINO"
-                : (String) parameters.getOrDefault("indicatorCode", "SORTINO");
+        String indicatorCode = stringParameter(parameters, "indicatorCode", "SORTINO");
         DecisionIndicatorEntity indicator = indicatorRepository.findById(indicatorCode).orElse(null);
-        if (indicator == null || indicator.getFieldExpression() == null) {
-            log.warn("SharpeRatioSourceProvider: Indicator {} not found or missing fieldExpression", indicatorCode);
+        if (indicator == null || indicator.getFieldExpression() == null
+                || indicator.getFieldExpression().isBlank()) {
+            log.warn("SharpeRatioSourceProvider has no field expression configured for indicator {}", indicatorCode);
             return null;
         }
 
-        LocalDate toDate = parameters != null && parameters.get("toDate") instanceof LocalDate localDate ? localDate : context.getAsOfDate();
-        LocalDate fromDate = parameters != null && parameters.get("fromDate") instanceof LocalDate localDate ? localDate : toDate.minusMonths(18);
-        double riskFreeRate = parameters != null && parameters.get("riskFreeRate") instanceof Number number ? number.doubleValue() : 0.06d;
-        int window = parameters != null && parameters.get("window") instanceof Number number ? number.intValue() : 20;
-
-        List<String> tickers;
-        if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
-            if (context.getSubjectId() == null || context.getSubjectId().isBlank()) {
-                return null;
-            }
-            tickers = List.of(context.getSubjectId());
-        } else if ("MARKET".equalsIgnoreCase(context.getSubjectType())) {
-            Object tickerParameter = parameters == null ? null : parameters.get("tickers");
-            if (!(tickerParameter instanceof Collection<?> collection)) {
-                throw new IllegalArgumentException("MARKET Sharpe provider requires parameters.tickers");
-            }
-            tickers = collection.stream().filter(Objects::nonNull).map(String::valueOf).toList();
-        } else {
-            throw new IllegalArgumentException("Unsupported subject type: " + context.getSubjectType());
-        }
-
+        LocalDate date = context.getAsOfDate();
+        int days = resolveDays(parameters);
+        List<String> tickers = resolveTickers(context, parameters);
         if (tickers.isEmpty()) {
-            log.warn("SharpeRatioSourceProvider: No tickers resolved for indicator {}", indicatorCode);
+            log.warn("SharpeRatioSourceProvider resolved no tickers for indicator {}", indicatorCode);
             return null;
         }
 
-        List<RatioTImeSeries> rows = sharpeRatioService.computeRatiosForTimeFrame(tickers, fromDate, toDate, riskFreeRate, window);
-        log.debug("SharpeRatioSourceProvider: Computed {} rows for indicator {} from {} to {} with window {}", rows.size(), indicatorCode, fromDate, toDate, window);
+        List<SharpeSortinoHistoryResponse> rows = historyService.getHistory(date, date, days, tickers);
+        log.debug("SharpeRatioSourceProvider fetched {} rows for indicator {} on {} with {} days and tickers {}",
+                rows.size(), indicatorCode, date, days, tickers);
 
-        if (rows.isEmpty()) {
-            log.warn("SharpeRatioSourceProvider: No rows computed for indicator {}", indicatorCode);
-            return null;
-        }
-
-        String fieldExpression = indicator.getFieldExpression();
-        String aggregation = indicator.getRowAggregation() == null ? "SINGLE" : indicator.getRowAggregation();
-        Map<String, List<Object>> valuesByTicker = new LinkedHashMap<>();
-        for (RatioTImeSeries row : rows) {
-            if (row == null || row.getTicker() == null || row.getDate() == null || !row.getDate().isEqual(toDate)) {
+        Map<String, Object> valuesByTicker = new LinkedHashMap<>();
+        for (SharpeSortinoHistoryResponse row : rows) {
+            if (row == null || row.getTicker() == null || !date.equals(row.getDate())
+                    || !Integer.valueOf(days).equals(row.getRollingDays())) {
                 continue;
             }
-            Object value = parser.parseExpression(fieldExpression).getValue(row);
+            Object value = parser.parseExpression(indicator.getFieldExpression()).getValue(row);
             if (value != null) {
-                valuesByTicker.computeIfAbsent(row.getTicker(), ignored -> new ArrayList<>()).add(value);
+                valuesByTicker.put(row.getTicker(), value);
             }
         }
 
         if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
-            return aggregateValues(valuesByTicker.getOrDefault(tickers.get(0), List.of()), aggregation);
+            Object value = valuesByTicker.get(tickers.get(0));
+            log.info("SharpeRatioSourceProvider resolved indicator={} subject={} date={} days={} value={}",
+                    indicatorCode, tickers.get(0), date, days, value);
+            return value;
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        valuesByTicker.forEach((ticker, values) -> {
-            Object aggregated = aggregateValues(values, aggregation);
-            if (aggregated != null) {
-                result.put(ticker, aggregated);
-            }
-        });
-        return result;
-    }
-
-    private Object aggregateValues(List<Object> values, String aggregation) {
-        if (values == null || values.isEmpty()) {
-            return null;
+        if ("MARKET".equalsIgnoreCase(context.getSubjectType())) {
+            log.info("SharpeRatioSourceProvider resolved indicator={} date={} days={} tickerCount={} values={}",
+                    indicatorCode, date, days, tickers.size(), valuesByTicker);
+            return valuesByTicker;
         }
-        return switch (aggregation.toUpperCase(Locale.ROOT)) {
-            case "MAX" -> values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).max(Double::compareTo).orElse(null);
-            case "MIN" -> values.stream().map(this::toDoubleOrNull).filter(Objects::nonNull).min(Double::compareTo).orElse(null);
-            case "FIRST", "SINGLE" -> values.get(0);
-            default -> values.get(0);
-        };
+
+        throw new IllegalArgumentException("Unsupported subject type: " + context.getSubjectType());
     }
 
-    private Double toDoubleOrNull(Object value) {
+    private int resolveDays(Map<String, Object> parameters) {
+        Object value = parameters == null ? null : parameters.get("days");
+        if (value == null && parameters != null) {
+            value = parameters.get("window");
+        }
+        if (value == null) {
+            return DEFAULT_DAYS;
+        }
+
+        int days;
         if (value instanceof Number number) {
-            return number.doubleValue();
+            double numericValue = number.doubleValue();
+            if (!Double.isFinite(numericValue) || numericValue != Math.rint(numericValue)) {
+                throw new IllegalArgumentException("days must be a whole number");
+            }
+            days = number.intValue();
+        } else if (value instanceof String text) {
+            days = Integer.parseInt(text);
+        } else {
+            throw new IllegalArgumentException("days must be numeric");
         }
-        if (value instanceof String text) {
-            return Double.parseDouble(text);
+        if (days <= 0) {
+            throw new IllegalArgumentException("days must be positive");
         }
-        return null;
+        return days;
+    }
+
+    private List<String> resolveTickers(IndicatorEvaluationContext context, Map<String, Object> parameters) {
+        if ("TICKER".equalsIgnoreCase(context.getSubjectType())) {
+            if (context.getSubjectId() == null || context.getSubjectId().isBlank()) {
+                log.warn("SharpeRatioSourceProvider received a TICKER context without a subjectId");
+                return List.of();
+            }
+            return List.of(context.getSubjectId().trim());
+        }
+        if ("MARKET".equalsIgnoreCase(context.getSubjectType())) {
+            Object tickerParameter = parameters == null ? null : parameters.get("tickers");
+            if (!(tickerParameter instanceof Collection<?> collection)) {
+                throw new IllegalArgumentException("MARKET Sharpe/Sortino provider requires parameters.tickers");
+            }
+            LinkedHashSet<String> tickers = new LinkedHashSet<>();
+            for (Object value : collection) {
+                if (value != null) {
+                    String ticker = String.valueOf(value).trim();
+                    if (!ticker.isBlank()) {
+                        tickers.add(ticker);
+                    }
+                }
+            }
+            return List.copyOf(tickers);
+        }
+        throw new IllegalArgumentException("Unsupported subject type: " + context.getSubjectType());
+    }
+
+    private String stringParameter(Map<String, Object> parameters, String name, String defaultValue) {
+        Object value = parameters == null ? null : parameters.get(name);
+        return value == null ? defaultValue : String.valueOf(value);
     }
 }

@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
 
 import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.entity.PriceDeliveryVolumeEntity;
@@ -141,6 +143,40 @@ public class InMemoryPDVCacheService implements PDVCacheService {
             if (start > end || start >= list.size() || end < 0) {
                 return List.of();
             }
+            cacheHitCount.incrementAndGet();
+            return new ArrayList<>(list.subList(start, end + 1));
+        }
+    }
+
+    @Override
+    public List<PriceDeliveryVolumeEntity> findLatestByTickerAndDate(String ticker, LocalDate toDate, int limit) {
+        if (toDate == null) {
+            throw new IllegalArgumentException("toDate must not be null");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        if (!cacheProperties.isEnabled()) {
+            dbFallbackCount.incrementAndGet();
+            List<PriceDeliveryVolumeEntity> records = new ArrayList<>(repository
+                    .findByTickerAndDateLessThanEqualOrderByDateDesc(ticker, toDate, PageRequest.of(0, limit)));
+            Collections.reverse(records);
+            return records;
+        }
+
+        rangeQueryCount.incrementAndGet();
+        ArrayList<PriceDeliveryVolumeEntity> list = cache.computeIfAbsent(ticker, this::loadTickerFromDb);
+        if (list.isEmpty()) {
+            cacheMissCount.incrementAndGet();
+            return List.of();
+        }
+
+        synchronized (list) {
+            int end = PDVCacheUtils.upperBound(list, toDate);
+            if (end < 0) {
+                return List.of();
+            }
+            int start = Math.max(0, end - limit + 1);
             cacheHitCount.incrementAndGet();
             return new ArrayList<>(list.subList(start, end + 1));
         }

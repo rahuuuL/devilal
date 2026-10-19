@@ -18,6 +18,8 @@ public interface PDVCacheService {
     List<PriceDeliveryVolumeEntity> findByTickerAndDateBetweenOrderByDateAsc(String ticker, LocalDate fromDate,
             LocalDate toDate);
 
+    List<PriceDeliveryVolumeEntity> findLatestByTickerAndDate(String ticker, LocalDate toDate, int limit);
+
     List<PriceDeliveryVolumeEntity> findByTickerAndDateGreaterThanEqualOrderByDateAsc(String ticker, LocalDate fromDate);
 
     List<PriceDeliveryVolumeEntity> findByDate(LocalDate date);

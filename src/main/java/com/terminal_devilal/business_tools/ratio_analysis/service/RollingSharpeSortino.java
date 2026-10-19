@@ -1,9 +1,11 @@
 package com.terminal_devilal.business_tools.ratio_analysis.service;
 
+import java.util.Arrays;
+
 public final class RollingSharpeSortino {
 
-	private final double[] returns;
-	private final int window;
+	private double[] returns;
+	private int window;
 
 	private int head = 0;
 	private int size = 0;
@@ -14,13 +16,34 @@ public final class RollingSharpeSortino {
 	// downside deviation uses MAR-adjusted returns
 	private double downsideSumSq = 0.0;
 
-	private final double mar; // mean annual risk-free converted to per-period
+	private double mar; // mean annual risk-free converted to per-period
 
 	public RollingSharpeSortino(int window, double riskFreeRateAnnual) {
-		this.window = window;
-		this.returns = new double[window];
+		configure(window, riskFreeRateAnnual);
+	}
 
+	public void configure(int window, double riskFreeRateAnnual) {
+		if (window <= 0) {
+			throw new IllegalArgumentException("window must be positive");
+		}
+		if (!Double.isFinite(riskFreeRateAnnual)) {
+			throw new IllegalArgumentException("riskFreeRateAnnual must be finite");
+		}
+		if (this.window != window) {
+			this.window = window;
+			this.returns = new double[window];
+		}
 		this.mar = riskFreeRateAnnual / 252.0;
+		reset();
+	}
+
+	public void reset() {
+		Arrays.fill(returns, 0.0);
+		head = 0;
+		size = 0;
+		sum = 0.0;
+		sumSq = 0.0;
+		downsideSumSq = 0.0;
 	}
 
 	public void add(double r) {
