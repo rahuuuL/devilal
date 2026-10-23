@@ -55,6 +55,16 @@ public class MannKendallTrendAnalysisController {
 		return ResponseEntity.ok(results);
 	}
 
+	@GetMapping("/sortino-ratio/trend")
+	public ResponseEntity<List<MannKendallResponse>> getSortinoMannKendallAnalysis(
+			@RequestParam("fromDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+			@RequestParam("toDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+			@RequestParam("days") Integer days, @RequestParam(required = false) List<String> tickers) {
+		List<MannKendallResponse> results = analyzeMannKendallForTicker
+				.getSortinoMannKendallTrendAnalysis(fromDate, toDate, days, tickers);
+		return ResponseEntity.ok(results);
+	}
+
 	@PostMapping("/history/generate")
 	public ResponseEntity<List<MkResultHistoryResponse>> generateHistory(
 			@RequestBody MannKendallHistoryGenerateRequest request) {

@@ -19,6 +19,8 @@ import com.terminal_devilal.business_tools.mannkendall.calculator.MannKendallCal
 import com.terminal_devilal.business_tools.mannkendall.calculator.MannKendallCalculator;
 import com.terminal_devilal.business_tools.mannkendall.calculator.MannKendallCalculatorImpl;
 import com.terminal_devilal.business_tools.mannkendall.dto.MannKendallResponse;
+import com.terminal_devilal.business_tools.ratio_analysis.dto.SharpeSortinoHistoryResponse;
+import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeSortinoHistoryService;
 import com.terminal_devilal.indicators.common_entities.TickerValue;
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 import com.terminal_devilal.utils.WorkingDayDateRangeUtil;
@@ -27,12 +29,15 @@ import com.terminal_devilal.utils.WorkingDayDateRangeUtil;
 public class AnalyzeMannKendallForTicker {
 
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;
+	private final SharpeSortinoHistoryService sharpeSortinoHistoryService;
 	private final MannKendallCalculator calculator;
 	private static final Logger log = LoggerFactory.getLogger(AnalyzeMannKendallForTicker.class);
 
-	public AnalyzeMannKendallForTicker(PriceDeliveryVolumeService priceDeliveryVolumeService) {
+	public AnalyzeMannKendallForTicker(PriceDeliveryVolumeService priceDeliveryVolumeService,
+			SharpeSortinoHistoryService sharpeSortinoHistoryService) {
 		super();
 		this.priceDeliveryVolumeService = priceDeliveryVolumeService;
+		this.sharpeSortinoHistoryService = sharpeSortinoHistoryService;
 		this.calculator = new MannKendallCalculatorImpl();
 	}
 
@@ -41,6 +46,18 @@ public class AnalyzeMannKendallForTicker {
 				"close");
 
 		return analysisProcessWithCalculator(groupedClosePrices);
+	}
+
+	public List<MannKendallResponse> getSortinoMannKendallTrendAnalysis(LocalDate fromDate, LocalDate toDate,
+			Integer days, List<String> tickers) {
+		List<TickerValue> sortinoValues = sharpeSortinoHistoryService.getHistory(fromDate, toDate, days, tickers)
+				.stream()
+				.map(row -> new TickerValue(row.getTicker(), row.getDate(),
+						row.getSortinoRatio() == null ? Double.NaN : row.getSortinoRatio()))
+				.sorted(Comparator.comparing(TickerValue::getTicker).thenComparing(TickerValue::getDate))
+				.collect(Collectors.toList());
+
+		return analysisProcessWithCalculator(sortinoValues);
 	}
 
 	public WindowAnalysisBatchResult getMannKendallTrendAnalysisByDays(LocalDate toDate, List<Integer> daysList) {
