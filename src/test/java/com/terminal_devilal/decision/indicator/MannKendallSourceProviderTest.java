@@ -21,16 +21,6 @@ class MannKendallSourceProviderTest {
 	private static final LocalDate AS_OF_DATE = LocalDate.of(2026, 9, 30);
 
 	@Test
-	void returnsEmptyStringForMissingTickerValueWhenEnabled() {
-		MannKendallSourceProvider provider = createProvider();
-
-		Object value = provider.getValue(new IndicatorEvaluationContext("TICKER", "AAA", AS_OF_DATE),
-				Map.of("indicatorCode", "MK_TREND", "days", 5, "nullAsEmpty", true));
-
-		assertEquals("", value);
-	}
-
-	@Test
 	void keepsReturningNullByDefault() {
 		MannKendallSourceProvider provider = createProvider();
 
@@ -41,11 +31,15 @@ class MannKendallSourceProviderTest {
 	}
 
 	@Test
-	void resolvesTrendAtRequestedAvailableRowOffset() {
+	void resolvesTrendFromHistoryForTicker() {
 		MannKendallHistoryService historyService = mock(MannKendallHistoryService.class);
 		MkResultHistoryEntity row = new MkResultHistoryEntity();
+		row.setTicker("AAA");
+		row.setDate(AS_OF_DATE);
+		row.setDays(5);
 		row.setTrend("decreasing");
-		when(historyService.fetchTrendAtOffset(5, "AAA", null, AS_OF_DATE, 2)).thenReturn(row);
+		when(historyService.fetchByDateRangeDaysAndTickers(AS_OF_DATE, AS_OF_DATE, 5, java.util.Set.of("AAA")))
+				.thenReturn(List.of(row));
 
 		DecisionIndicatorEntity indicator = new DecisionIndicatorEntity("MK_TREND", "trend", "TREND", "TICKER",
 				"STRING", "VALUE", "PROVIDER", "MK_SOURCE", null, null, "Mann-Kendall trend");
@@ -56,19 +50,35 @@ class MannKendallSourceProviderTest {
 		MannKendallSourceProvider provider = new MannKendallSourceProvider(historyService, indicatorRepository);
 
 		Object value = provider.getValue(new IndicatorEvaluationContext("TICKER", "AAA", AS_OF_DATE),
-				Map.of("indicatorCode", "MK_TREND", "days", 5, "trendOffset", 2));
+				Map.of("indicatorCode", "MK_TREND", "days", 5));
 
 		assertEquals("decreasing", value);
 	}
 
 	@Test
-	void returnsEmptyStringForMissingMarketTickersWhenEnabled() {
-		MannKendallSourceProvider provider = createProvider();
+	void resolvesAvailableMarketRowsByTicker() {
+		MannKendallHistoryService historyService = mock(MannKendallHistoryService.class);
+		MkResultHistoryEntity row = new MkResultHistoryEntity();
+		row.setTicker("AAA");
+		row.setDate(AS_OF_DATE);
+		row.setDays(5);
+		row.setTrend("increasing");
+		when(historyService.fetchByDateRangeDaysAndTickers(AS_OF_DATE, AS_OF_DATE, 5,
+				java.util.Set.of("AAA", "BBB"))).thenReturn(List.of(row));
+
+		DecisionIndicatorEntity indicator = new DecisionIndicatorEntity("MK_TREND", "trend", "TREND", "TICKER",
+				"STRING", "VALUE", "PROVIDER", "MK_SOURCE", null, null, "Mann-Kendall trend");
+		indicator.setSourceProviderCode("MK_SOURCE");
+		indicator.setFieldExpression("trend");
+		indicator.setRowAggregation("FIRST");
+		DecisionIndicatorRepository indicatorRepository = mock(DecisionIndicatorRepository.class);
+		when(indicatorRepository.findById("MK_TREND")).thenReturn(Optional.of(indicator));
+		MannKendallSourceProvider provider = new MannKendallSourceProvider(historyService, indicatorRepository);
 
 		Object value = provider.getValue(new IndicatorEvaluationContext("MARKET", "", AS_OF_DATE),
-				Map.of("indicatorCode", "MK_TREND", "days", 5, "nullAsEmpty", true, "tickers", List.of("AAA", "BBB")));
+				Map.of("indicatorCode", "MK_TREND", "days", 5, "tickers", List.of("AAA", "BBB")));
 
-		assertEquals(Map.of("AAA", "", "BBB", ""), value);
+		assertEquals(Map.of("AAA", "increasing"), value);
 	}
 
 	private MannKendallSourceProvider createProvider() {
