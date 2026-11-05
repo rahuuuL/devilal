@@ -38,6 +38,7 @@ out/
 
 ### Unwanted Files ###
 NSE_COOKIE.properties
+/.env
 
 ### Python cache ###
 /src/main/python/__pycache__/
