@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/decision/rules")
+@RequestMapping("/devilal/decision/rules")
 public class DecisionRuleController {
     private final DecisionRuleService service;
     public DecisionRuleController(DecisionRuleService service){this.service=service;}

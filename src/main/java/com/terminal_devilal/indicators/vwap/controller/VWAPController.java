@@ -13,7 +13,7 @@ import com.terminal_devilal.indicators.vwap.entity.projections.VwapProjection;
 import com.terminal_devilal.indicators.vwap.service.VWAPService;
 
 @RestController
-@RequestMapping("/api/devilal/vwap")
+@RequestMapping("/devilal/vwap")
 public class VWAPController {
 	private final VWAPService vwapService;
 

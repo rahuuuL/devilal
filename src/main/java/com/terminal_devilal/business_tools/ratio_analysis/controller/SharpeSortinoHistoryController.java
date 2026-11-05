@@ -27,7 +27,7 @@ import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeSortinoC
 import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeSortinoHistoryService;
 
 @RestController
-@RequestMapping("/api/devilal/ratios")
+@RequestMapping("/devilal/ratios")
 public class SharpeSortinoHistoryController {
 
     private final SharpeSortinoHistoryService historyService;

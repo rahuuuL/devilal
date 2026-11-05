@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.terminal_devilal.indicators.pdv.dto.PDVCacheReloadRequest;
 
 @RestController
-@RequestMapping("/api/cache/pdv")
+@RequestMapping("/devilal/cache/pdv")
 public class PDVCacheController {
 
     private final PDVCacheService pdvCacheService;

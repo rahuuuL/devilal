@@ -13,7 +13,7 @@ import com.terminal_devilal.indicators.price.dto.RollingSlopeResult;
 import com.terminal_devilal.indicators.price.service.RollingSlopeCalculator;
 
 @RestController
-@RequestMapping("/api/devilal/price-analysis")
+@RequestMapping("/devilal/price-analysis")
 public class RollingSlopeController {
 	private final RollingSlopeCalculator rollingSlopeCalculator;
 

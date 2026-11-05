@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/decision/indicators")
+@RequestMapping("/devilal/decision/indicators")
 public class DecisionIndicatorController {
     private final DecisionIndicatorService service;
     public DecisionIndicatorController(DecisionIndicatorService service){this.service=service;}

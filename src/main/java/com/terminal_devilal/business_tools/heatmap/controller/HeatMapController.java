@@ -15,7 +15,7 @@ import com.terminal_devilal.business_tools.heatmap.service.PriceHeatMapService;
 import com.terminal_devilal.business_tools.heatmap.service.VolumeAnalysisService;
 
 @RestController
-@RequestMapping("/api/devilal")
+@RequestMapping("/devilal")
 public class HeatMapController {
 
 	private final PriceHeatMapService priceHeatMapService;

@@ -11,7 +11,7 @@ import com.terminal_devilal.indicators.atr.entity.projections.TrueRangeProjectio
 import com.terminal_devilal.indicators.atr.service.AverageTrueRangeService;
 
 @RestController
-@RequestMapping("/api/devilal/atr")
+@RequestMapping("/devilal/atr")
 public class ATRController {
 	private final AverageTrueRangeService atrService;
 

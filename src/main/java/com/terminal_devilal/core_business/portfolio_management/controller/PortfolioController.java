@@ -18,7 +18,7 @@ import com.terminal_devilal.core_business.portfolio_management.dto.PortfolioDTO;
 import com.terminal_devilal.core_business.portfolio_management.service.PortfolioService;
 
 @RestController
-@RequestMapping("/api/devilal/portfolio")
+@RequestMapping("/devilal/portfolio")
 public class PortfolioController {
 
 	private final PortfolioService portfolioService;

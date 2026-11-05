@@ -15,7 +15,7 @@ import com.terminal_devilal.indicators.rsi.entity.projections.RsiProjection;
 import com.terminal_devilal.indicators.rsi.service.RSIService;
 
 @RestController
-@RequestMapping("/api/devilal/rsi")
+@RequestMapping("/devilal/rsi")
 public class RSIController {
 
 	private final RSIService rsiService;

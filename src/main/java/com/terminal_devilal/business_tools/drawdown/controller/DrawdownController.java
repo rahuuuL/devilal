@@ -14,7 +14,7 @@ import com.terminal_devilal.business_tools.drawdown.dto.DrawdownDTO;
 import com.terminal_devilal.business_tools.drawdown.service.DrawdownService;
 
 @RestController
-@RequestMapping("/api/devilal/drawdown")
+@RequestMapping("/devilal/drawdown")
 public class DrawdownController {
 
 	private final DrawdownService drawdownService;

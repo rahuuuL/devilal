@@ -12,7 +12,7 @@ import com.terminal_devilal.business_tools.beta.dto.BetaDTO;
 import com.terminal_devilal.business_tools.beta.service.BetaCalculator;
 
 @RestController
-@RequestMapping("/api/devilal")
+@RequestMapping("/devilal")
 public class BetaController {
 
 	private final BetaCalculator betaCalculator;

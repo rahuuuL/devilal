@@ -15,7 +15,7 @@ import com.terminal_devilal.indicators.pdv.entity.projections.PriceOhlcvProjecti
 import com.terminal_devilal.indicators.pdv.service.PriceDeliveryVolumeService;
 
 @RestController
-@RequestMapping("/api/devilal/pdv")
+@RequestMapping("/devilal/pdv")
 public class PDVController {
 
 	private final PriceDeliveryVolumeService priceDeliveryVolumeService;

@@ -15,14 +15,14 @@ import com.terminal_devilal.core_processes.static_cache.StaticCache;
 import com.terminal_devilal.utils.nse.FetchNSEAPI;
 
 @RestController
-@RequestMapping("/nse-cookie")
-public class NSECookie {
+@RequestMapping("/devilal/nse-cookie")
+public class NSECookieController {
 
 	private final FetchNSEAPI fetchNSEAPI;
 
 	private final StaticCache cache;
 
-	public NSECookie(FetchNSEAPI fetchNSEAPI, StaticCache cache) {
+	public NSECookieController(FetchNSEAPI fetchNSEAPI, StaticCache cache) {
 		super();
 		this.fetchNSEAPI = fetchNSEAPI;
 		this.cache = cache;

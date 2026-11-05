@@ -11,7 +11,7 @@ import com.terminal_devilal.core_processes.sync_data.service.TickerIndustryInfoU
 import com.terminal_devilal.core_processes.sync_data.service.TickerTradeInfoUpdate;
 
 @RestController
-@RequestMapping("/pdv")
+@RequestMapping("/devilal/pdv")
 public class DeliveryPriceVolumeController {
 	private DataSync dataSync;
 

@@ -28,7 +28,7 @@ import com.terminal_devilal.business_tools.pvpp.service.PvppConfigService;
 import com.terminal_devilal.business_tools.pvpp.service.PvppHistoryService;
 
 @RestController
-@RequestMapping("/api/devilal/pvpp")
+@RequestMapping("/devilal/pvpp")
 public class PvppController {
 
     private final PvppHistoryService pvppHistoryService;

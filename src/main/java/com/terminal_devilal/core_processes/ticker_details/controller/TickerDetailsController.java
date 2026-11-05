@@ -11,7 +11,7 @@ import com.terminal_devilal.core_processes.ticker_details.dto.TickerDetailsRespo
 import com.terminal_devilal.core_processes.ticker_details.service.TickerDetailsService;
 
 @RestController
-@RequestMapping("/api/devilal/ticker-info")
+@RequestMapping("/devilal/ticker-info")
 public class TickerDetailsController {
 
 	private TickerDetailsService tickerDetailsService;

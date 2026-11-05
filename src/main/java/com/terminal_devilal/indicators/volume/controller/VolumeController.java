@@ -14,7 +14,7 @@ import com.terminal_devilal.indicators.volume.dto.ConsistentVolumeSignalResponse
 import com.terminal_devilal.indicators.volume.service.ConsistentVolumeDetector;
 
 @RestController
-@RequestMapping("/api/devilal/volume-analysis")
+@RequestMapping("/devilal/volume-analysis")
 public class VolumeController {
 
 	private final ConsistentVolumeDetector consistentVolumeDetector; // Service that has detectConsistantVolumes()

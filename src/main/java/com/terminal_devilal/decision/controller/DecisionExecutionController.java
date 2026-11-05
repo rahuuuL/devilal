@@ -12,7 +12,7 @@ import com.terminal_devilal.decision.service.DecisionExecutionService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/decision")
+@RequestMapping("/devilal/decision")
 public class DecisionExecutionController {
 	private final DecisionExecutionService service;
 

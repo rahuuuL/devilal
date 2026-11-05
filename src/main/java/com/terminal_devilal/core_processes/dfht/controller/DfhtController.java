@@ -17,7 +17,7 @@ import com.terminal_devilal.core_processes.dfht.entity.DataFetchEntity;
 import com.terminal_devilal.core_processes.dfht.service.DataFetchHistoryService;
 
 @RestController
-@RequestMapping("/api/devilal/dfht")
+@RequestMapping("/devilal/dfht")
 public class DfhtController {
 
 	private final DataFetchHistoryService dataFetchHistoryService;

@@ -13,7 +13,7 @@ import com.terminal_devilal.business_tools.ratio_analysis.dto.RatioTImeSeries;
 import com.terminal_devilal.business_tools.ratio_analysis.service.SharpeRatioService;
 
 @RestController
-@RequestMapping("/api/devilal/ratios")
+@RequestMapping("/devilal/ratios")
 public class SharpeRatioController {
 
 	private final SharpeRatioService sharpeRatioService;

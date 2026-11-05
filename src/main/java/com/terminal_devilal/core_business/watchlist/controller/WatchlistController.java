@@ -17,7 +17,7 @@ import com.terminal_devilal.core_business.watchlist.dto.WatchlistDTO;
 import com.terminal_devilal.core_business.watchlist.service.WatchlistService;
 
 @RestController
-@RequestMapping("/api/devilal/watchlist")
+@RequestMapping("/devilal/watchlist")
 public class WatchlistController {
     private final WatchlistService watchlistService;
 

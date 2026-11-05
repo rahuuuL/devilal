@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/decision/profiles")
+@RequestMapping("/devilal/decision/profiles")
 public class DecisionProfileController {
     private final DecisionProfileService service;
     public DecisionProfileController(DecisionProfileService service){this.service=service;}

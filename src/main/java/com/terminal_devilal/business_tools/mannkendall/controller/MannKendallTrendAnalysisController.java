@@ -30,7 +30,7 @@ import com.terminal_devilal.business_tools.mannkendall.service.MannKendallHistor
 import com.terminal_devilal.business_tools.mannkendall.service.MkConfigService;
 
 @RestController
-@RequestMapping("/api/devilal/mann-kendall")
+@RequestMapping("/devilal/mann-kendall")
 public class MannKendallTrendAnalysisController {
 
 	private final AnalyzeMannKendallForTicker analyzeMannKendallForTicker;
